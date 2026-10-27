@@ -1,0 +1,126 @@
+name: Build BreakDash
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: breakdash-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  BREAKDASH_REPOSITORY: ${{ github.repository }}
+
+jobs:
+  verify:
+    name: Checks and test APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build, lint, and run JVM tests on GitHub
+        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - name: Name APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk BreakDash-debug-armeabi-v7a.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BreakDash-debug-armeabi-v7a
+          path: BreakDash-debug-armeabi-v7a.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BreakDash-check-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify diagnostics receiver (GitHub only)
+        run: node --test backend/receiver.test.mjs
+
+  release:
+    name: Signed release
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      BREAKDASH_DIAGNOSTICS_URL: ${{ vars.BREAKDASH_DIAGNOSTICS_URL }}
+      BREAKDASH_DIAGNOSTICS_PUBLIC_KEY: ${{ vars.BREAKDASH_DIAGNOSTICS_PUBLIC_KEY }}
+      BREAKDASH_KEYSTORE_PASSWORD: ${{ secrets.BREAKDASH_KEYSTORE_PASSWORD }}
+      BREAKDASH_KEY_ALIAS: ${{ secrets.BREAKDASH_KEY_ALIAS }}
+      BREAKDASH_KEY_PASSWORD: ${{ secrets.BREAKDASH_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install Android SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Prepare signing key and tag version
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BREAKDASH_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            echo 'Release tags must look like v1.0.0'; exit 1
+          fi
+          if [[ -z "$KEYSTORE_BASE64" || -z "$BREAKDASH_KEYSTORE_PASSWORD" || -z "$BREAKDASH_KEY_ALIAS" || -z "$BREAKDASH_KEY_PASSWORD" ]]; then
+            echo 'Configure the four BREAKDASH signing secrets before creating a release tag.'; exit 1
+          fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/breakdash.jks"
+          echo "BREAKDASH_KEYSTORE_PATH=$RUNNER_TEMP/breakdash.jks" >> "$GITHUB_ENV"
+          echo "BREAKDASH_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Build signed and optimized APK
+        run: gradle --no-daemon --stacktrace :app:lintRelease :app:assembleRelease
+      - name: Verify and checksum APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="BreakDash-${GITHUB_REF_NAME}-armeabi-v7a.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$artifact"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$artifact"
+          sha256sum "$artifact" > "$artifact.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BreakDash-signed-release
+          path: |
+            BreakDash-*.apk
+            BreakDash-*.sha256
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" BreakDash-*.apk BreakDash-*.sha256 --verify-tag --title "BreakDash $GITHUB_REF_NAME" --generate-notes
+      - name: Remove runner signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/breakdash.jks"
