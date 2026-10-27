@@ -34,6 +34,7 @@ import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.layers.Property;
 import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
@@ -113,7 +114,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
         });
     }
     private SymbolLayer pinLayer(String id,String source) {
-        return new SymbolLayer(id,source).withProperties(PropertyFactory.iconImage("breakdash-pin"),PropertyFactory.iconAnchor("bottom"),
+        return new SymbolLayer(id,source).withProperties(PropertyFactory.iconImage("breakdash-pin"),PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
                 PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true));
     }
     private Bitmap pinImage() {
