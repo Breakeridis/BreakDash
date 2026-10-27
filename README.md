@@ -53,6 +53,8 @@ In repository **Settings → Secrets and variables → Actions**, add:
 
 Also set the repository Actions variable `BREAKDASH_SIGNER_SHA256` to the SHA-256 fingerprint of the release signing certificate. CI verifies both APKs against it before publishing. PKCS12 is the default keystore type; an existing JKS keystore additionally needs the Actions variable `BREAKDASH_KEYSTORE_TYPE=JKS`.
 
+If an exported single-key keystore uses an internal alias that differs from its certificate's friendly name, CI resolves that sole private-key entry automatically. The expected certificate fingerprint is still enforced; ambiguous multi-key stores are rejected when the configured alias is absent.
+
 Generate and back up your signing key in a trusted environment, such as a private GitHub Codespace cloud terminal; no local app compilation is needed. Keep this same key for every release. Do not commit it, paste it in issues, or include it in APKs.
 
 In **Actions → Build BreakDash → Run workflow**, enter a stable tag such as `v1.0.0` in the optional **release_version** field. Leaving it blank builds development APKs only. The workflow runs checks, builds and shrinks both ARM variants, verifies their signatures, creates their SHA-256 files, then creates the tag and publishes the release from the exact tested commit. An existing tag must point at that same commit. Pushing a stable version tag from a cloud terminal also triggers this release path. Signing secrets and the expected certificate fingerprint are mandatory; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).

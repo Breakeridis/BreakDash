@@ -129,7 +129,16 @@ jobs:
           fi
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/breakdash.jks"
-          keytool -list -keystore "$RUNNER_TEMP/breakdash.jks" -storetype "$BREAKDASH_KEYSTORE_TYPE" -alias "$BREAKDASH_KEY_ALIAS" -storepass:env BREAKDASH_KEYSTORE_PASSWORD
+          key_info=$(keytool -J-Duser.language=en -J-Duser.country=US -list -v -keystore "$RUNNER_TEMP/breakdash.jks" -storetype "$BREAKDASH_KEYSTORE_TYPE" -storepass:env BREAKDASH_KEYSTORE_PASSWORD)
+          printf '%s\n' "$key_info"
+          if ! keytool -list -keystore "$RUNNER_TEMP/breakdash.jks" -storetype "$BREAKDASH_KEYSTORE_TYPE" -alias "$BREAKDASH_KEY_ALIAS" -storepass:env BREAKDASH_KEYSTORE_PASSWORD > /dev/null 2>&1; then
+            exported_alias=$(printf '%s\n' "$key_info" | awk '/^Alias name: / {alias=substr($0,13)} /^Entry type: PrivateKeyEntry/ {print alias}')
+            if [[ -z "$exported_alias" || "$exported_alias" == *$'\n'* ]]; then
+              echo 'Configured alias is absent and the keystore does not have exactly one private key.'; exit 1
+            fi
+            echo 'Using the single private-key alias from the exported keystore.'
+            echo "BREAKDASH_KEY_ALIAS=$exported_alias" >> "$GITHUB_ENV"
+          fi
           echo "BREAKDASH_KEYSTORE_PATH=$RUNNER_TEMP/breakdash.jks" >> "$GITHUB_ENV"
           echo "BREAKDASH_VERSION=${BREAKDASH_RELEASE_TAG#v}" >> "$GITHUB_ENV"
       - name: Build signed and optimized APK
