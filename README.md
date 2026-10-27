@@ -14,7 +14,7 @@ The app uses Android platform Views, direct hardware radio IPC, and one MapLibre
 
 The first artifact is a development build with package ID `com.breakdash.launcher.debug`. Release builds use `com.breakdash.launcher`; the two can coexist. GitHub's default debug signing key is ephemeral, so installing a later development APK may require removing the previous development installation. Signed release builds support updates without losing preferences.
 
-**No local app builds, test runs, emulators, or SDK installations are required.** GitHub installs the pinned Gradle/Android toolchain, runs JVM tests and Android lint, checks the encrypted report receiver, and publishes the development APK. There is deliberately no wrapper JAR or local build bootstrap script.
+**No local app builds, test runs, emulators, or SDK installations are required.** GitHub installs the pinned Gradle/Android toolchain, runs JVM tests and Android lint for both build types, checks an optimized unsigned release build and the encrypted report receiver, and publishes the installable development APK. There is deliberately no wrapper JAR or local build bootstrap script. Unsigned release builds are validation outputs only and are not published as installation artifacts.
 
 ## Cockpit controls
 

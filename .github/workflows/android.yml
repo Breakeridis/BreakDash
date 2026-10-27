@@ -36,7 +36,7 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build, lint, and run JVM tests on GitHub
-        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:lintRelease :app:assembleRelease
       - name: Name APK
         run: cp app/build/outputs/apk/debug/app-debug.apk BreakDash-debug-armeabi-v7a.apk
       - uses: actions/upload-artifact@v7.0.2
