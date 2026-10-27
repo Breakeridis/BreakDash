@@ -18,6 +18,7 @@ final class NavigationDiagnostics {
         String component=intent==null || intent.getComponent()==null ? "implicit" : intent.getComponent().flattenToShortString();
         String action=intent==null ? "none" : intent.getAction();
         events.addLast(String.format(Locale.ROOT,"%tT · %s · action %s · component %s · flags 0x%08X",System.currentTimeMillis(),name,action,component,intent==null ? 0 : intent.getFlags()));
+        DiagnosticHistory.event(name+" · action "+action+" · component "+component+String.format(Locale.ROOT," · flags 0x%08X",intent==null ? 0 : intent.getFlags()));
         while(events.size()>16) events.removeFirst();
     }
     static String defaultHome(Context context) {

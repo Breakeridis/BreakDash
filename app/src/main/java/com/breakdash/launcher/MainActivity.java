@@ -69,7 +69,7 @@ public final class MainActivity extends Activity {
     private void immersive() {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
-    @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if(focused) immersive(); }
+    @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); navigationTrace.event("window focus "+focused,null); if(focused) immersive(); }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent); navigationTrace.event("new intent",intent);
         if(Intent.ACTION_MAIN.equals(intent.getAction())) { panels.close(); immersive(); }
@@ -235,7 +235,7 @@ public final class MainActivity extends Activity {
         RadioController.State state=radio.state;
         frequency.setText(RadioFrequency.number(state.frequency));
         radioPower.setText(state.playing ? "●" : "○"); radioPower.setTextColor(state.playing ? ui.accent : ui.muted);
-        radioStatus.setText((RadioFrequency.valid(state.frequency) ? RadioFrequency.unit(state.frequency)+"  ·  " : "") + (state.connected ? state.playing ? "ON AIR" : "STANDBY" : "TUNER DISCONNECTED"));
+        radioStatus.setText((RadioFrequency.valid(state.frequency) ? RadioFrequency.unit(state.frequency)+"  ·  " : "") + (state.observing ? state.playing ? "ON AIR" : "STANDBY" : "STATUS PAUSED"));
         radioStatus.setTextColor(state.playing ? ui.accent : ui.amber);
         metadata.setText(!state.rt.isEmpty() ? state.ps + "  " + state.rt : !state.ps.isEmpty() ? state.ps : "Hold a preset to save your station");
         for(int i=0;i<6;i++) if(presets[i]!=null) {
@@ -337,10 +337,10 @@ public final class MainActivity extends Activity {
     @Override protected void onStart() { super.onStart(); portal.mapView.onStart(); if(life!=null) life.run(catalog::load,result->{ apps=result; defaults(); renderFavorites(); },error->{}); }
     @Override protected void onResume() { super.onResume(); navigationTrace.event("resume",null); resumed=true; visibilityChanged(); }
     @Override protected void onPause() { navigationTrace.event("pause",null); resumed=false; visibilityChanged(); super.onPause(); }
-    @Override protected void onStop() { portal.mapView.onStop(); super.onStop(); }
+    @Override protected void onStop() { navigationTrace.event("stop",null); portal.mapView.onStop(); super.onStop(); }
     @Override protected void onSaveInstanceState(Bundle state) { super.onSaveInstanceState(state); portal.mapView.onSaveInstanceState(state); }
     @Override public void onLowMemory() { super.onLowMemory(); portal.mapView.onLowMemory(); catalog.clearIcons(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if(level>=TRIM_MEMORY_RUNNING_LOW) { portal.mapView.onLowMemory(); catalog.clearIcons(); } }
     @Override public void onBackPressed() { if(!panels.empty()) panels.closeTop(); }
-    @Override protected void onDestroy() { resumed=false; cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
+    @Override protected void onDestroy() { navigationTrace.event("destroy",null); resumed=false; cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
 }

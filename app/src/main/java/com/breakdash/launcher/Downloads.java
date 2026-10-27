@@ -2,21 +2,19 @@ package com.breakdash.launcher;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.Signature;
 import android.net.Uri;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
 import com.breakdash.launcher.core.Versions;
 import com.breakdash.launcher.core.ReleaseAssets;
+import com.breakdash.launcher.core.CertificateTrust;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.security.MessageDigest;
-import java.util.Arrays;
 import java.util.function.IntConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -112,14 +110,19 @@ final class Downloads {
     }
     private static void validate(Activity activity,File file,String packageName) throws Exception {
         PackageManager manager=activity.getPackageManager();
-        PackageInfo archive=manager.getPackageArchiveInfo(file.getAbsolutePath(),PackageManager.GET_SIGNING_CERTIFICATES);
-        if(archive==null || !packageName.equals(archive.packageName)) throw new IOException("Downloaded APK has the wrong package");
+        ApkSignatures archive=ApkSignatures.read(manager,packageName,file.getAbsolutePath());
+        if(archive.info==null || !packageName.equals(archive.info.packageName)) throw new IOException("Downloaded APK has the wrong package or cannot be read");
         if(packageName.equals(activity.getPackageName())) {
-            PackageInfo installed=manager.getPackageInfo(packageName,PackageManager.GET_SIGNING_CERTIFICATES);
-            if(archive.getLongVersionCode()<=installed.getLongVersionCode()) throw new IOException("Update version is not newer");
-            if(archive.signingInfo==null || installed.signingInfo==null) throw new IOException("Missing APK signature");
-            Signature[] trusted=installed.signingInfo.getApkContentsSigners(),incoming=archive.signingInfo.getApkContentsSigners();
-            if(!Arrays.equals(trusted,incoming)) throw new IOException("Update signing certificate differs from this installation");
+            ApkSignatures installed=ApkSignatures.read(manager,packageName,null);
+            String details="Version "+BuildConfig.VERSION_NAME+" · "+new java.util.Date()+"\nInstalled: "+installed.describe()+"\nDownloaded: "+archive.describe();
+            DiagnosticHistory.update(details+"\nValidation started");
+            try {
+                if(installed.info==null || !packageName.equals(installed.info.packageName)) throw new IOException("Installed app cannot be inspected");
+                if(archive.info.getLongVersionCode()<=installed.info.getLongVersionCode()) throw new IOException("Update version is not newer");
+                if(archive.fingerprints.isEmpty() || installed.fingerprints.isEmpty()) throw new IOException("Android could not read APK certificates using either API. Send feedback for signing details.");
+                if(!CertificateTrust.matches(installed.fingerprints,archive.fingerprints)) throw new IOException("Update signing certificate differs from this installation");
+                DiagnosticHistory.update(details+"\nResult: package/version and signer checks passed");
+            } catch(IOException error) { DiagnosticHistory.update(details+"\nResult: "+error.getMessage()); throw error; }
         }
     }
     static boolean install(Activity activity,File apk) {

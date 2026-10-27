@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.database.ContentObserver;
-import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -16,7 +15,7 @@ import android.provider.Settings;
 import com.breakdash.launcher.core.RadioFrequency;
 import java.util.function.Consumer;
 
-/** Only documented primitive Binder calls. Frequency/state arrive through events, never a poll. */
+/** Passive status on Home; bind and send documented tuner commands only after an explicit user action. */
 final class RadioController {
     static final String DESCRIPTOR = "com.nwd.radio.service.RadioFeature";
     static final String PACKAGE = "com.nwd.radio.service";
@@ -29,8 +28,8 @@ final class RadioController {
     static final class State {
         int frequency, source = -1;
         byte band;
-        boolean playing, connected;
-        String ps = "", rt = "", error = "Tuner disconnected";
+        boolean playing, connected, observing;
+        String ps = "", rt = "", error = "";
     }
     private final Context context;
     private final Tasks tasks;
@@ -41,19 +40,25 @@ final class RadioController {
     private volatile IBinder binder;
     private String lastDescriptor="Not observed";
     private long lastConnected;
+    private Runnable pendingCommand;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable connectionTimeout=()->{ if(started && !state.connected) disconnected("Tuner connection timed out; try again"); };
     RadioController(Context context, Tasks tasks, Consumer<State> changed, Consumer<String> errors) {
         this.context = context; this.tasks = tasks; this.changed = changed; this.errors = errors;
     }
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
-            if (!started) return;
+            if (!started || !bound) return;
             binder = service;
-            execute(() -> {
+            scope.run(() -> {
                 String actual = service.getInterfaceDescriptor();
                 if (!DESCRIPTOR.equals(actual)) throw new IllegalStateException("Unexpected tuner: " + actual);
                 return actual;
-            }, actual -> { lastDescriptor=actual; lastConnected=System.currentTimeMillis(); state.connected = true; state.error = ""; readSettings(); requestState(); readRt(); });
+            }, actual -> {
+                main.removeCallbacks(connectionTimeout); lastDescriptor=actual; lastConnected=System.currentTimeMillis(); state.connected = true; state.error = "";
+                DiagnosticHistory.event("radio command binding ready"); readSettings();
+                Runnable command=pendingCommand; pendingCommand=null; if(command!=null) command.run();
+            },error->disconnected("Tuner unavailable: "+error.getMessage()));
         }
         @Override public void onServiceDisconnected(ComponentName name) { disconnected("Tuner service disconnected"); }
         @Override public void onBindingDied(ComponentName name) { disconnected("Tuner binding died; reopen dashboard to reconnect"); }
@@ -81,7 +86,8 @@ final class RadioController {
     };
     void start() {
         if (started) return;
-        started = true; scope = tasks.scope();
+        started = true; state.observing=true; state.error=""; state.rt=""; scope = tasks.scope();
+        DiagnosticHistory.event("radio passive status start · no bind or state request");
         IntentFilter filter = new IntentFilter();
         filter.addAction(NEW_FREQUENCY); filter.addAction(FREQUENCY); filter.addAction(RADIO_STATE);
         try {
@@ -91,16 +97,21 @@ final class RadioController {
             for (String key : KEYS) context.getContentResolver().registerContentObserver(Settings.System.getUriFor(key), false, observer);
         } catch (RuntimeException error) { state.error = error.getMessage(); }
         readSettings();
+    }
+    private void bindForCommand() {
+        if(bound) return;
+        DiagnosticHistory.event("radio bind requested by a dashboard control");
         try {
             bound = context.bindService(new Intent("com.nwd.radio.service.ACTION_RADIO_SERVICE").setPackage(PACKAGE),
                     connection, Context.BIND_AUTO_CREATE);
             if (!bound) disconnected("NWD tuner service not installed");
+            else main.postDelayed(connectionTimeout,8000);
         } catch (RuntimeException error) { disconnected("Tuner unavailable: " + error.getMessage()); }
-        requestState();
     }
     void stop() {
         if (!started) return;
-        started = false;
+        started = false; state.observing=false; pendingCommand=null; main.removeCallbacks(connectionTimeout);
+        DiagnosticHistory.event("radio status stop · playback untouched");
         if (scope != null) scope.close();
         rtPending = false;
         if (registered) { context.unregisterReceiver(receiver); registered = false; }
@@ -109,10 +120,16 @@ final class RadioController {
         binder = null; state.connected = false;
     }
     private void disconnected(String reason) {
+        main.removeCallbacks(connectionTimeout); pendingCommand=null;
+        if(bound) { try { context.unbindService(connection); } catch(IllegalArgumentException ignored) {} bound=false; }
         binder = null; state.connected = false; state.error = reason; changed.accept(state);
+        DiagnosticHistory.event("radio command binding failed"); errors.accept(reason);
     }
     private void requestState() {
-        context.sendBroadcast(new Intent("com.nwd.action.radiowidget_request_frequence").setPackage(PACKAGE));
+        // This request is only a response to an explicit tuner command, never a Home/resume side effect.
+        readSettings(); readRt();
+        try { context.sendBroadcast(new Intent("com.nwd.action.radiowidget_request_frequence").setPackage(PACKAGE)); }
+        catch(RuntimeException error) { state.error="Radio status request rejected"; DiagnosticHistory.event("explicit radio status request rejected"); }
     }
     private void readSettings() {
         try {
@@ -158,12 +175,17 @@ final class RadioController {
     }
     private <T> void execute(java.util.concurrent.Callable<T> work, Consumer<T> success) {
         if (scope == null || !started) { errors.accept("Radio is not connected"); return; }
+        if(!state.connected) {
+            if(pendingCommand!=null) { errors.accept("Connecting to the tuner…"); return; }
+            pendingCommand=()->execute(work,success); bindForCommand(); return;
+        }
         scope.run(work, success, error -> { rtPending = false; state.error = error.getMessage(); errors.accept(state.error); changed.accept(state); });
     }
     String diagnostics() {
         return "Expected radio descriptor: " + DESCRIPTOR + "\nLast observed descriptor: " + lastDescriptor
                 + "\nLast successful connection: " + (lastConnected==0 ? "Never" : new java.util.Date(lastConnected))
-                + "\nDashboard binding currently connected: " + state.connected + " (released while dialogs are open)\nFrequency: " + state.frequency
+                + "\nDashboard binding currently connected: " + state.connected + " (commands only; released while dialogs are open)"
+                + "\nPassive status active: "+state.observing+" · no bind or state-request broadcast on Home/resume\nFrequency: " + state.frequency
                 + "\nBand (raw): " + state.band + "\nPlaying: " + state.playing + "\nMCU source: " + state.source
                 + "\nPS: " + state.ps + "\nRT: " + state.rt + "\nLast error: " + state.error
                 + "\nFM: 8750..10800 (10 kHz units); AM: 531..1620 kHz\n"

@@ -38,6 +38,9 @@ final class Diagnostics {
                 .append("\nKERNEL\n").append(file("/proc/version")).append("\nMEMORY (raw; vendor counters may be inflated)\n").append(file("/proc/meminfo"))
                 .append('\n').append(UsbDiagnostics.collect(context,cloud)).append('\n');
         if(context instanceof MainActivity) report.append(((MainActivity)context).navigationDiagnostics()).append('\n');
+        report.append(DiagnosticHistory.collect()).append("\nINSTALLED APP SIGNING\n");
+        try { report.append(ApkSignatures.read(context.getPackageManager(),context.getPackageName(),null).describe()).append('\n'); }
+        catch(Exception error) { report.append("Installed signature inspection unavailable\n"); }
         report.append("SYSTEM PROPERTIES\n");
         try {
             String properties=SystemTools.process(new String[]{"/system/bin/getprop"},4);

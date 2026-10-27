@@ -163,6 +163,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 
 **v1.0.7 revision:** [Readable settings](settings-layout.md) replaces Apps navigation buttons with Aurora presence and Google package switches, uses labeled switches for night mode and online maps, and hides unavailable update actions while reducing the source to a compact link.
 
+**v1.0.8 revision:** [Radio/Home and signing follow-up](diagnostic-privacy-and-usb.md) makes dashboard radio startup passive, binds tuner commands only after explicit taps, adds bounded persisted app/crash/update diagnostics, and adds a legacy certificate-read fallback while retaining exact signer verification.
+
 Houses system tools, software updates, and configuration controls.
 
 #### Core Sub-Functions:

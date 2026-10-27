@@ -11,6 +11,7 @@ All app builds and automated checks belong in GitHub Actions. The following chec
 5. Select the day theme under direct sunlight and the night theme in darkness. Check app picker, scrolling favorites, long-press actions, and the default Home selection. Confirm all six radio presets remain legible in the narrower side column.
 6. Open Radio and test bezel Home and Radio Home, checking that the dashboard returns while audio continues. Test Home/Back after launching other apps and settings. If still stuck, reproduce immediately before sending feedback; the report now includes default-Home, own-task and launch/lifecycle state.
 7. Keep the USB device connected while capturing feedback. Check its VID/PID, interfaces and removable storage state. Verify serials, identifiers and network/location fields are masked in the upload preview. See [privacy, USB and Home checks](diagnostic-privacy-and-usb.md).
+8. With v1.0.8, verify Home return does not itself connect the radio Binder or issue a frequency request. Use a dashboard tuner command and verify its first tap connects and executes, with subsequent taps working normally. Open a panel while connecting and confirm the pending command is cancelled. If the radio still recaptures the screen, send feedback immediately to include persisted focus/lifecycle events and any captured Java crash.
 
 ## NWD radio
 
@@ -39,4 +40,5 @@ Vendor services are outside this APK and have not been exercised here. Capture t
 7. Enable and disable each Google package, then test bulk actions. Standard third-party apps normally lack system API permission; ADB/root must be available for package control.
 8. Download Aurora and verify Android's install permission handoff. A different existing Aurora signing certificate requires choosing a consistent distribution or manually replacing the old app.
 9. For release updates, install a signed release and publish a higher version using the same keystore. Test download, installer permission, and preservation of app preferences.
+   - If an older head-unit installation reports **Missing APK signature**, install v1.0.8's 32-bit APK manually over it once. For a subsequent update, verify legacy certificate collection is recorded if SigningInfo is unavailable; missing or mismatched certificates must still block installation. Review the public installed/incoming fingerprints and validation result in a fresh feedback preview.
 10. Review a cloud report, add a note, and upload only to your configured HTTPS inbox. Confirm that the saved file contains ciphertext and that your private key can decrypt it with the owner utility.

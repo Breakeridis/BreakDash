@@ -2,6 +2,14 @@
 
 Updated in v1.0.6 after physical head-unit feedback.
 
+### v1.0.8 follow-up
+
+The vendor Home issue remained observable, so task separation alone is not treated as a confirmed hardware fix. Dashboard entry is now passive: it registers the documented radio observers/broadcast receiver and reads settings, but does not bind the tuner, query RT, or send a state-request broadcast on resume. Commands bind only following an explicit tap, time out after eight seconds if unconnected, and release when the cockpit is hidden. Frequency/PS still depend on the fields the firmware actually exposes; RT becomes available after a dashboard command connects the tuner. No undocumented Parcelable layout, firmware property write or forced foreground loop is introduced.
+
+Feedback now includes up to 32 persisted app-only lifecycle/focus/radio events, the most recent Java crash's exception types and stack frames, installed-app certificate fingerprints, and the last update validation result. These bounded records remain in app-private storage across restarts and are sent only through the existing explicit preview/send flow. Crash messages and intent extras/URLs are omitted. The normal Android crash handler still runs. Native crashes, process kills and firmware Home routing may leave no Java exception; absence of a crash record is not proof of correct behavior.
+
+The updater requests `GET_SIGNING_CERTIFICATES` first and falls back to `GET_SIGNATURES` when the vendor returns no certificates. Both are public [Android package-manager APIs](https://developer.android.com/reference/android/content/pm/PackageManager#GET_SIGNATURES). Android's [PackageInfo contract](https://developer.android.com/reference/android/content/pm/PackageInfo#signatures) says certificate ordering can vary; comparison uses exact nonempty fingerprint sets. Missing or different signers remain errors. No key rotation is introduced. A head unit blocked by the old **Missing APK signature** check needs one manual APK installation over the current app before it can use the fallback.
+
 ## Uploaded system capture
 
 `ReportPrivacy` normalizes property/setting names before checking identity, account, credential, Bluetooth, registration/activation, network and location fields. It covers vendor spellings of Bluetooth MAC, local address, PIN code, paired phone name, MFi ID, registration code, eMMC CID, and network-derived city/coordinates. Tests use synthetic values, never a real report.
