@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 import java.util.Locale;
 import com.breakdash.launcher.core.MapTracking;
 import com.breakdash.launcher.core.VehicleHeading;
+import com.breakdash.launcher.core.VehicleMotion;
+import com.breakdash.launcher.core.RouteProgress;
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
 import org.maplibre.android.camera.CameraUpdateFactory;
@@ -57,6 +59,10 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private Location lastFix;
     private final VehicleHeading vehicleHeading = new VehicleHeading();
     private final MapTracking tracking = new MapTracking();
+    private final VehicleMotion motion = new VehicleMotion();
+    private CameraPosition cameraFrom,cameraTo;
+    private long cameraStarted;
+    private final Runnable motionFrame=this::animateFrame;
     private Navigation.Place selection;
     private final Runnable finishPreview = () -> { if (active) renderFix(); };
     Navigation.Route route;
@@ -79,7 +85,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
             map.getUiSettings().setCompassEnabled(false); map.getUiSettings().setLogoEnabled(false); map.getUiSettings().setAttributionEnabled(false);
             map.addOnCameraMoveStartedListener(reason -> {
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
-                    tracking.explore(); removeCallbacks(finishPreview); changed.accept(fix());
+                    tracking.explore(); cameraTo=null; removeCallbacks(finishPreview); changed.accept(fix());
                 }
             });
             map.addOnMapLongClickListener(point -> {
@@ -141,7 +147,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     }
     void pin(Navigation.Place place) {
         if(map!=null) { map.cancelAllVelocityAnimations(); map.cancelTransitions(); }
-        selection=place; tracking.explore(); removeCallbacks(finishPreview); renderSelection(); changed.accept(fix());
+        selection=place; tracking.explore(); cameraTo=null; removeCallbacks(finishPreview); renderSelection(); changed.accept(fix());
     }
     Navigation.Place selection() { return selection; }
     void clearSelection() { selection=null; renderSelection(); changed.accept(fix()); }
@@ -160,8 +166,9 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private FeatureCollection empty() { return FeatureCollection.fromFeatures(new Feature[0]); }
     void active(boolean value) {
         if (active == value) return; active = value;
-        if (!value) { removeCallbacks(finishPreview); locations.removeUpdates(this); if(map!=null) map.cancelTransitions(); mapView.onPause(); return; }
+        if (!value) { removeCallbacks(finishPreview); removeCallbacks(motionFrame); motion.finish(); cameraTo=null; locations.removeUpdates(this); if(map!=null) map.cancelTransitions(); mapView.onPause(); return; }
         mapView.onResume();
+        renderFix();
         long previewLeft=tracking.previewRemaining(SystemClock.elapsedRealtime());
         if(previewLeft>0) postDelayed(finishPreview,previewLeft);
         if (activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) { status.accept("Tap GPS to allow location"); return; }
@@ -177,26 +184,66 @@ final class MapPortal extends FrameLayout implements LocationListener {
     double heading() { return vehicleHeading.degrees(); }
     boolean hasHeading() { return vehicleHeading.known(); }
     @Override public void onLocationChanged(Location fix) {
-        if (!active || !fix.hasAccuracy() || fix.getAccuracy()>100) return;
+        if (!active || !fix.hasAccuracy() || !Float.isFinite(fix.getAccuracy()) || fix.getAccuracy()<0 || fix.getAccuracy()>100
+                || !Double.isFinite(fix.getLatitude()) || !Double.isFinite(fix.getLongitude())) return;
+        long now=SystemClock.elapsedRealtime();
+        if(SystemClock.elapsedRealtimeNanos()-fix.getElapsedRealtimeNanos()>=15_000_000_000L) return;
+        if(lastFix!=null && fix.getElapsedRealtimeNanos()<=lastFix.getElapsedRealtimeNanos()) return;
+        // Finish the current visual frame before retargeting, including fixes arriving early.
+        drawMotion(now);
+        boolean snap=lastFix==null || fix.getElapsedRealtimeNanos()-lastFix.getElapsedRealtimeNanos()>5_000_000_000L
+                || RouteProgress.distance(lastFix.getLatitude(),lastFix.getLongitude(),fix.getLatitude(),fix.getLongitude())>250;
         lastFix = fix;
         if (fix.hasBearing() && fix.hasSpeed()) vehicleHeading.update(fix.getBearing(),fix.getSpeed(),fix.hasBearingAccuracy() ? fix.getBearingAccuracyDegrees() : Double.NaN);
-        renderFix(); changed.accept(fix);
+        motion.target(fix.getLatitude(),fix.getLongitude(),heading(),now,snap);
+        beginFollow(now,!snap); animateFrame(); changed.accept(fix);
     }
     private void renderFix() {
+        long now=SystemClock.elapsedRealtime(); beginFollow(now,true); animateFrame();
+    }
+    private void beginFollow(long now,boolean animate) {
+        cameraTo=null;
+        if(map==null || !active || fix()==null || !tracking.shouldFollow(now)) return;
+        boolean navigating=route!=null;
+        cameraFrom=map.getCameraPosition(); cameraStarted=animate ? now : now-VehicleMotion.DURATION_MS;
+        cameraTo=new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude()))
+                .zoom(navigating ? 16.5 : 15.5).bearing(heading()).tilt(navigating ? 45 : 0)
+                .padding(0,navigating ? getHeight()*.18 : 0,0,0).build();
+        if(cameraFrom.target==null) cameraFrom=cameraTo;
+        boolean unchanged=RouteProgress.distance(cameraFrom.target.getLatitude(),cameraFrom.target.getLongitude(),cameraTo.target.getLatitude(),cameraTo.target.getLongitude())<.01
+                && Math.abs(cameraFrom.zoom-cameraTo.zoom)<1e-6 && Math.abs(cameraFrom.tilt-cameraTo.tilt)<1e-6
+                && Math.abs(((cameraFrom.bearing-cameraTo.bearing+540)%360)-180)<1e-6;
+        for(int i=0;i<4;i++) unchanged &= Math.abs((cameraFrom.padding==null ? 0 : cameraFrom.padding[i])-(cameraTo.padding==null ? 0 : cameraTo.padding[i]))<.01;
+        if(unchanged) cameraStarted=now-VehicleMotion.DURATION_MS;
+    }
+    private void animateFrame() {
+        removeCallbacks(motionFrame);
+        if(!active || destroyed || map==null || map.getStyle()==null || fix()==null) return;
+        long now=SystemClock.elapsedRealtime(); drawMotion(now);
+        if(motion.moving(now) || cameraTo!=null) postDelayed(motionFrame,VehicleMotion.FRAME_MS);
+    }
+    private void drawMotion(long now) {
         if (map==null || lastFix==null) return;
         Style style=map.getStyle(); if (style==null) return;
+        VehicleMotion.Pose pose=motion.sample(now); if(pose==null) return;
         GeoJsonSource source=style.getSourceAs("breakdash-vehicle");
-        if (source!=null) source.setGeoJson(Point.fromLngLat(lastFix.getLongitude(),lastFix.getLatitude()));
+        if (source!=null) source.setGeoJson(Point.fromLngLat(pose.longitude,pose.latitude));
         SymbolLayer arrow=style.getLayerAs("breakdash-vehicle-arrow");
-        if(arrow!=null) arrow.setProperties(PropertyFactory.iconRotate((float)heading()),PropertyFactory.iconOpacity(hasHeading() ? 1f : 0f));
-        if (active && fix()!=null && tracking.shouldFollow(SystemClock.elapsedRealtime())) {
-            boolean navigating=route!=null;
-            CameraPosition camera=new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude()))
-                    .zoom(navigating ? 16.5 : 15.5).bearing(heading()).tilt(navigating ? 45 : 0)
-                    .padding(0,navigating ? getHeight()*.18 : 0,0,0).build();
-            // Interpolate only between GPS updates; no extra sensor or animation loop.
-            map.easeCamera(CameraUpdateFactory.newCameraPosition(camera),700,false);
+        if(arrow!=null) arrow.setProperties(PropertyFactory.iconRotate((float)pose.bearing),PropertyFactory.iconOpacity(hasHeading() ? 1f : 0f));
+        if (cameraTo!=null && active && fix()!=null && tracking.shouldFollow(now)) {
+            double t=VehicleMotion.fraction(now-cameraStarted);
+            VehicleMotion.Pose camera=VehicleMotion.interpolate(new VehicleMotion.Pose(cameraFrom.target.getLatitude(),cameraFrom.target.getLongitude(),cameraFrom.bearing),
+                    new VehicleMotion.Pose(cameraTo.target.getLatitude(),cameraTo.target.getLongitude(),cameraTo.bearing),t);
+            // One finite 20 FPS timeline drives both source position and camera; neither jumps ahead.
+            map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(new LatLng(camera.latitude,camera.longitude))
+                    .bearing(camera.bearing).zoom(VehicleMotion.lerp(cameraFrom.zoom,cameraTo.zoom,t)).tilt(VehicleMotion.lerp(cameraFrom.tilt,cameraTo.tilt,t))
+                    .padding(padding(0,t),padding(1,t),padding(2,t),padding(3,t)).build()));
+            if(t>=1) cameraTo=null;
         }
+    }
+    private double padding(int index,double progress) {
+        double from=cameraFrom.padding==null ? 0 : cameraFrom.padding[index],to=cameraTo.padding==null ? 0 : cameraTo.padding[index];
+        return VehicleMotion.lerp(from,to,progress);
     }
     void route(Navigation.Route value) {
         route=value; selection=null; removeCallbacks(finishPreview); renderSelection(); renderRoute();
@@ -205,7 +252,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
             for (Point point:value.geometry) points.add(new LatLng(point.latitude(),point.longitude()));
             map.cancelAllVelocityAnimations();
             map.cancelTransitions();
-            tracking.previewRoute(SystemClock.elapsedRealtime());
+            tracking.previewRoute(SystemClock.elapsedRealtime()); cameraTo=null;
             int roundPadding=Math.round(Math.min(getWidth(),getHeight())*.20f);
             int bottomPadding=Math.max(roundPadding,Math.round(176*density));
             // Follow-camera padding persists in MapLibre, so clear it before fitting a flat overview.
@@ -232,7 +279,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     }
     private float mapRadius() { return Math.max(0,Math.min(getWidth(),getHeight())/2f-5*density); }
     @Override public void onProviderEnabled(String provider) { status.accept("Acquiring satellites"); }
-    @Override public void onProviderDisabled(String provider) { lastFix=null; status.accept("GPS is switched off"); changed.accept(null); }
+    @Override public void onProviderDisabled(String provider) { removeCallbacks(motionFrame); motion.finish(); cameraTo=null; lastFix=null; status.accept("GPS is switched off"); changed.accept(null); }
     @Override public void onStatusChanged(String provider,int status,Bundle extras) {}
     private final class Ring extends View {
         final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); final Path mask=new Path();

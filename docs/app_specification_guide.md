@@ -55,6 +55,7 @@ The centerpiece of the cockpit is a circular masked viewport that combines navig
    - Auto-rotates according to true GPS bearing ("Heading-Up" orientation) so the road ahead is always pointing upward.
    - While navigating, follows the car with a 45° tilted perspective, a closer road zoom, and a slightly lowered vehicle position to reveal more road ahead. A flat route overview appears briefly first. Smooth transitions connect GPS updates; no extra orientation sensor or background tracking service is used.
    - Holds the last reliable GPS travel direction while stopped or moving slowly. Rejects poor bearing accuracy when reported. Direction is unknown until a reliable moving fix arrives; the vehicle dot becomes a directional arrow once established.
+   - Since v1.0.9, [vehicle motion](map-motion.md) synchronizes the marker and follow camera over a finite 700 ms interpolation at up to 20 FPS. Gesture exploration remains in control; animations stop when hidden and never predict travel beyond the latest measured fix.
 2. **Rotational Compass & Cardinal Direction**:
    - Integrated floating compass ribbon indicating heading degrees (`0°–359°`).
    - Cardinal orientation indicator displaying one of the 8 dynamic headings (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`).

@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 
 def setting = { String key, String fallback -> System.getenv(key) ?: fallback }
 def literal = { String value -> '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '') + '"' }
-def appVersion = setting('BREAKDASH_VERSION', '1.0.8').replaceFirst('^v', '')
+def appVersion = setting('BREAKDASH_VERSION', '1.0.9').replaceFirst('^v', '')
 if (!(appVersion ==~ /\d{1,3}\.\d{1,3}\.\d{1,3}/)) throw new GradleException('Use a stable version such as 1.0.0')
 def parts = appVersion.split('\\.').collect { it.toInteger() }
 
