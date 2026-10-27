@@ -1,6 +1,7 @@
 .gradle/
 .ci-reports/
 .release-signing/
+.feedback/
 **/build/
 local.properties
 .idea/

@@ -1,5 +1,7 @@
 # Optional encrypted diagnostic inbox
 
+The primary **Send feedback** action now uses a fixed ntfy topic and a protected recipient key; see [fixed feedback](../docs/ntfy-feedback.md) and `read-feedback.ps1` for link-free retrieval. This page describes the separate optional owner-server receiver.
+
 This receiver is the optional **Send to my server** route. It requires an HTTPS endpoint and RSA public key. The default app build has neither configured. The separate **Upload for 3 hours** route uploads encrypted files directly to Uguu without this receiver; see [temporary sharing](../docs/temporary-reports.md) and `read-temporary-report.mjs` for the recipient-side reader.
 
 This receiver is a small Node 22 program for an **owner-controlled server**. It writes encrypted JSON files to a private server directory. It makes no outbound network calls, does not decrypt, has no GitHub integration, and uses no third-party storage provider. It is not deployed by the Android workflow. Cloudflare R2 and GitHub issue storage are deliberately absent.

@@ -22,6 +22,7 @@ import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
 import org.json.JSONObject;
 import com.breakdash.launcher.core.TemporaryReport;
+import com.breakdash.launcher.core.FeedbackReport;
 
 /** Collected on demand; upload is invoked only by the explicit Upload report action. */
 final class Diagnostics {
@@ -83,6 +84,31 @@ final class Diagnostics {
             try(java.io.InputStream input=connection.getInputStream()) { response=new JSONObject(Http.read(input,16384)); }
             if(!response.optBoolean("success") || response.optJSONArray("files")==null || response.getJSONArray("files").length()!=1) throw new IOException("Uguu could not accept the report. Try again later.");
             Http.checkInterrupted(); return sealed.shareLink(response.getJSONArray("files").getJSONObject(0).getString("url"));
+        } finally { connection.disconnect(); }
+    }
+    static boolean feedbackConfigured() { return !BuildConfig.NTFY_TOPIC.isEmpty() && !BuildConfig.FEEDBACK_PUBLIC_KEY.isEmpty(); }
+    static String uploadFeedback(String report,String note) throws Exception {
+        Http.checkInterrupted(); String address=FeedbackReport.topicUrl(BuildConfig.NTFY_TOPIC);
+        byte[] file=FeedbackReport.seal(payload(report,note),BuildConfig.FEEDBACK_PUBLIC_KEY);
+        HttpURLConnection connection=Http.open(address,"PUT");
+        connection.setDoOutput(true); connection.setRequestProperty("Content-Type","application/octet-stream");
+        connection.setRequestProperty("X-Filename","BreakDash-feedback.bdn");
+        connection.setRequestProperty("X-Title","BreakDash encrypted feedback");
+        connection.setRequestProperty("X-Message","Encrypted diagnostic report");
+        connection.setRequestProperty("X-Firebase","no"); connection.setFixedLengthStreamingMode(file.length);
+        try {
+            try(java.io.OutputStream output=connection.getOutputStream()) {
+                for(int offset=0;offset<file.length;offset+=8192) {
+                    Http.checkInterrupted(); output.write(file,offset,Math.min(8192,file.length-offset));
+                }
+            }
+            int code=connection.getResponseCode();
+            if(code<200 || code>=300) throw new IOException("Feedback unavailable (HTTP "+code+"). Try again later.");
+            JSONObject response; try(java.io.InputStream input=connection.getInputStream()) { response=new JSONObject(Http.read(input,16384)); }
+            if(!"message".equals(response.optString("event")) || !BuildConfig.NTFY_TOPIC.equals(response.optString("topic")) || response.optJSONObject("attachment")==null) throw new IOException("ntfy could not store the feedback attachment");
+            JSONObject attachment=response.getJSONObject("attachment");
+            if(!"BreakDash-feedback.bdn".equals(attachment.optString("name")) || attachment.optLong("size",-1)!=file.length) throw new IOException("Feedback attachment was not accepted");
+            return "Feedback sent · ask to check it within 3 hours. No link needed.";
         } finally { connection.disconnect(); }
     }
     static String upload(Prefs prefs,String report,String note) throws Exception {

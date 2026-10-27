@@ -18,6 +18,8 @@ Updates explains disabled actions. A release with no newer version shows Up to d
 
 Reports follow note → preview → upload. The preview includes the note and the captured report. Sending uses that same capture; it does not silently collect another one. Since v1.0.4, **Upload for 3 hours** encrypts to Uguu and returns a complete share link, with a one-time key in its fragment. **Send to my server** still requires a receiver/public key. Both stay disabled until capture completes. Temporary sharing needs no server setup and has explicit Copy/Share actions; full links are kept in memory rather than preferences or logs. There is no GitHub issue storage. See [temporary reporting](temporary-reports.md).
 
+Since v1.0.5, **Send feedback** is the primary 80 dp action: it encrypts an attachment for a fixed ntfy topic and fixed recipient public key, eliminating per-report link sharing. **Temporary link** and **My server** are secondary alternatives. A successful fixed-inbox upload asks the user to request a check within three hours. Recipient credentials are retained outside source/APKs; see [fixed feedback](ntfy-feedback.md).
+
 Device checks after installing the signed APK:
 
 1. Verify all three utility tiles and the update badge fit on both head unit and phone.

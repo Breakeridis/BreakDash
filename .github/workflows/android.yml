@@ -15,6 +15,11 @@ on:
         required: false
         type: boolean
         default: false
+      probe_ntfy_feedback:
+        description: 'Test fixed ntfy feedback with a disposable topic and synthetic recipient'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,6 +30,8 @@ concurrency:
 
 env:
   BREAKDASH_REPOSITORY: ${{ github.repository }}
+  BREAKDASH_NTFY_TOPIC: ${{ vars.BREAKDASH_NTFY_TOPIC }}
+  BREAKDASH_FEEDBACK_PUBLIC_KEY: ${{ vars.BREAKDASH_FEEDBACK_PUBLIC_KEY }}
 
 jobs:
   verify:
@@ -94,6 +101,11 @@ jobs:
         env:
           BREAKDASH_TEMPORARY_FIXTURE_DIR: app/build/reports/temporary-share
         run: node backend/probe-temporary-sharing.mjs
+      - name: Probe fixed ntfy feedback with synthetic data
+        if: github.event_name == 'workflow_dispatch' && inputs.probe_ntfy_feedback
+        env:
+          BREAKDASH_TEMPORARY_FIXTURE_DIR: app/build/reports/temporary-share
+        run: node backend/probe-ntfy-feedback.mjs
 
   release:
     name: Signed release

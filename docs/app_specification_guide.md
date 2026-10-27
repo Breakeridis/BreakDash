@@ -157,6 +157,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 
 **v1.0.4 revision:** [Temporary encrypted sharing](temporary-reports.md) adds Uguu uploads with a three-hour advertised lifetime, preview-before-upload, and a complete share link containing a one-time decryption key. The optional owner-server route remains available; neither route creates GitHub issues.
 
+**v1.0.5 revision:** [Fixed encrypted feedback](ntfy-feedback.md) adds **Send feedback** to a stable ntfy topic, using RSA-wrapped per-report AES keys. The recipient checks the stored topic within the attachment lifetime, without requiring a new link from the user.
+
 Houses system tools, software updates, and configuration controls.
 
 #### Core Sub-Functions:

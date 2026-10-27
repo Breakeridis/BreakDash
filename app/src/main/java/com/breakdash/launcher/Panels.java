@@ -372,21 +372,27 @@ final class Panels implements AutoCloseable {
     }
     private void reportPreview(String note) {
         Panel panel=new Panel("Review report",false,true);
-        explain(panel.body,"Review firmware, memory and radio details. Common identifiers are masked; check for personal data. Temporary uploads go encrypted to Uguu for 3 hours. Anyone with the complete share link can read them.");
+        explain(panel.body,"Review firmware, memory and radio details. Common identifiers are masked; check for personal data. Send feedback encrypts to your fixed ntfy inbox. Ask to check it within 3 hours; no link copying needed.");
         TextView state=ui.text("Collecting…",17,ui.muted); panel.body.addView(state);
         TextView terminal=ui.text("",13,ui.text); terminal.setTypeface(Typeface.MONOSPACE); terminal.setTextIsSelectable(true);
         ScrollView scroll=new ScrollView(main); scroll.addView(terminal); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        LinearLayout actions=ui.row(); Button temporary=ui.button("Upload for 3 hours",()->{}),send=ui.button("Send to my server",()->{});
-        temporary.setEnabled(false); temporary.setTextColor(ui.accent); send.setEnabled(false);
-        ui.weighted(actions,temporary,80); ui.weighted(actions,send,80); panel.body.addView(actions);
+        Button feedback=ui.button("Send feedback",()->{}); feedback.setTextColor(ui.accent); feedback.setEnabled(false); panel.body.addView(feedback,new LinearLayout.LayoutParams(-1,ui.dp(80)));
+        LinearLayout actions=ui.row(); Button temporary=ui.button("Temporary link",()->{}),send=ui.button("My server",()->{});
+        temporary.setEnabled(false); send.setEnabled(false);
+        ui.weighted(actions,temporary,64); ui.weighted(actions,send,64); panel.body.addView(actions);
         final String[] report={null},shareLink={null}; final boolean[] sent={false};
         Button share=ui.button("Share link",()->temporaryShareLink(shareLink[0])); share.setVisibility(View.GONE); panel.body.addView(share,new LinearLayout.LayoutParams(-1,ui.dp(80)));
         Runnable ready=()->{
             boolean configured=!main.prefs.get("diagnostics_url",BuildConfig.DIAGNOSTICS_URL).isEmpty() && !main.prefs.get("diagnostics_key",BuildConfig.DIAGNOSTICS_PUBLIC_KEY).isEmpty();
             send.setEnabled(report[0]!=null && configured && !panel.busy && !sent[0]);
+            feedback.setEnabled(report[0]!=null && Diagnostics.feedbackConfigured() && !panel.busy && !sent[0]);
             temporary.setEnabled(report[0]!=null && !panel.busy && !sent[0]);
-            if(!panel.busy && !sent[0] && report[0]!=null) state.setText(configured ? "Ready to upload" : "Temporary sharing is ready · no server setup needed");
+            if(!panel.busy && !sent[0] && report[0]!=null) state.setText(Diagnostics.feedbackConfigured() ? "Ready to send feedback" : "Inbox not configured in this build · temporary sharing is available");
         };
+        feedback.setOnClickListener(v->{
+            if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; ready.run(); state.setText("Encrypting & sending feedback…");
+            panel.scope.run(()->Diagnostics.uploadFeedback(report[0],note),value->{ panel.busy=false; sent[0]=true; state.setText(value); },error->{ panel.busy=false; ready.run(); state.setText(error.getMessage()); });
+        });
         temporary.setOnClickListener(v->{
             if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; ready.run(); state.setText("Encrypting & uploading to Uguu…");
             panel.scope.run(()->Diagnostics.uploadTemporary(report[0],note),value->{
