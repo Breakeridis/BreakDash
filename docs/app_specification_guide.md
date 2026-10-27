@@ -71,8 +71,11 @@ The centerpiece of the cockpit is a circular masked viewport that combines navig
    - **Active Navigation Mode**:
      - Displays destination name and arrival distance.
      - Provides an illuminated **"Stop Navigation"** button to cancel the route guidance at any time.
-5. **Fullscreen Navigation Launcher Shortcut**:
-   - Tapping the map area outside controls launches the designated primary external navigation app (e.g. Google Maps, Waze, OsmAnd).
+5. **Touch Exploration & Pinned Destinations** (updated interaction):
+   - Drag to pan, pinch or double-tap to zoom, and use two fingers to rotate the map in place.
+   - Exploring pauses automatic camera following while GPS speed and heading continue updating. A dedicated **Recenter** button restores heading-up vehicle tracking.
+   - Long-press a point to place a destination pin. The inline **Navigate** action calculates an in-app driving route from a fresh GPS fix; **Clear** removes the pending point. Replacing or clearing a point cancels its pending calculation.
+   - Touching the map does not open an external app. The Primary Navigation quick-launch tile remains the shortcut to the designated external navigation application.
 
 ---
 

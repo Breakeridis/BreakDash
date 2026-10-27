@@ -28,10 +28,12 @@ Vendor services are outside this APK and have not been exercised here. Capture t
 ## Navigation and maintenance
 
 1. Use the explicit Connect screen to enable your selected online map services. Check heading-up map rotation while moving and stable orientation while stationary.
-2. Search, choose a destination, check the full route framing and return to vehicle tracking, verify next-turn and remaining road distance, and cancel. If off route, use a new search to recalculate.
-3. Revoke location permission or disable GPS; the dashboard must show the loss of a fresh fix. Disconnect internet; the app must remain usable for radio, apps, and GPS instrumentation.
-4. In Settings, Test/Connect ADB only after enabling the loopback daemon. Accept Android's RSA prompt. A closed port or denied authorization should display an error, not claim a successful package change.
-5. Enable and disable each Google package, then test bulk actions. Standard third-party apps normally lack system API permission; ADB/root must be available for package control.
-6. Download Aurora and verify Android's install permission handoff. A different existing Aurora signing certificate requires choosing a consistent distribution or manually replacing the old app.
-7. For release updates, install a signed release and publish a higher version using the same keystore. Test download, installer permission, and preservation of app preferences.
-8. Review a cloud report, add a note, and upload only to your configured HTTPS inbox. Confirm that the saved file contains ciphertext and that your private key can decrypt it with the owner utility.
+2. Drag, pinch, double-tap, and rotate the map. Confirm GPS speed keeps updating but the camera stays where you moved it. Tap **Recenter** to restore heading-up tracking.
+3. Hold a map point and check that an amber pin appears at the touched coordinate, including after zooming/rotating and on the scaled phone layout. Tap **Navigate**, verify the route and destination pin, then stop. A pending point can be cleared or replaced; canceling/replacing it during calculation must not display the old route when its response arrives. Without a fresh GPS fix, the pending pin remains available and Navigate stays disabled until GPS locks.
+4. Search, choose a destination, check the full route framing and return to vehicle tracking, verify next-turn and remaining road distance, and cancel. Drag during the route overview; the map must remain in explore mode until Recenter. If off route, use a new search or pinned destination to recalculate.
+5. Revoke location permission or disable GPS; the dashboard must show the loss of a fresh fix. Disconnect internet; the app must remain usable for radio, apps, and GPS instrumentation.
+6. In Settings, Test/Connect ADB only after enabling the loopback daemon. Accept Android's RSA prompt. A closed port or denied authorization should display an error, not claim a successful package change.
+7. Enable and disable each Google package, then test bulk actions. Standard third-party apps normally lack system API permission; ADB/root must be available for package control.
+8. Download Aurora and verify Android's install permission handoff. A different existing Aurora signing certificate requires choosing a consistent distribution or manually replacing the old app.
+9. For release updates, install a signed release and publish a higher version using the same keystore. Test download, installer permission, and preservation of app preferences.
+10. Review a cloud report, add a note, and upload only to your configured HTTPS inbox. Confirm that the saved file contains ciphertext and that your private key can decrypt it with the owner utility.

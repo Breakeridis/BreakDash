@@ -35,10 +35,10 @@ public final class MainActivity extends Activity {
     RadioController radio; MapPortal portal;
     List<AppCatalog.App> apps=new ArrayList<>();
     Downloads.Release release;
-    private Tasks.Scope life,visible;
-    private boolean resumed,dashboardActive,updateAttempted;
+    private Tasks.Scope life,visible,pinnedRouteScope;
+    private boolean resumed,dashboardActive,updateAttempted,pinRouting;
     private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,about;
-    private Button radioPower;
+    private Button radioPower,recenter,navigate,cancelNavigation;
     private final Button[] presets=new Button[6];
     private LinearLayout favorites;
     private LinearLayout navigationFooter;
@@ -114,18 +114,22 @@ public final class MainActivity extends Activity {
         HorizontalScrollView shelf=new HorizontalScrollView(this); shelf.setHorizontalScrollBarEnabled(false); favorites=ui.row(); shelf.addView(favorites); dock.addView(shelf,new LinearLayout.LayoutParams(0,ui.dp(80),1)); left.addView(dock);
 
         LinearLayout mapHeader=ui.row(); heading=ui.label("—°  /  HEADING UP"); mapHeader.addView(heading,new LinearLayout.LayoutParams(0,ui.dp(64),1)); heading.setGravity(Gravity.CENTER_VERTICAL);
+        recenter=ui.button("Recenter",()->{ portal.recenter(); if(portal.fix()==null) toast("Waiting for a fresh GPS fix"); });
+        recenter.setContentDescription("Recenter map and resume heading-up GPS tracking"); mapHeader.addView(recenter,new LinearLayout.LayoutParams(ui.dp(100),ui.dp(64)));
         Button search=ui.button("⌕",panels::search); search.setTextSize(30); search.setContentDescription("Search destination"); mapHeader.addView(search,new LinearLayout.LayoutParams(ui.dp(72),ui.dp(64))); middle.addView(mapHeader);
         FrameLayout mapFrame=new FrameLayout(this);
-        portal=new MapPortal(this,prefs,state,ignored->renderLocation(),message->{ gpsMessage=message; renderLocation(); },()->launchSlot("nav"));
+        portal=new MapPortal(this,prefs,state,ignored->renderLocation(),message->{ gpsMessage=message; renderLocation(); },this::pinDestination);
         FrameLayout.LayoutParams circle=new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER); mapFrame.addView(portal,circle); portal.theme(prefs.light());
         LinearLayout speedCard=ui.column(); speedCard.setGravity(Gravity.CENTER); speedCard.setPadding(ui.dp(22),ui.dp(6),ui.dp(22),ui.dp(8)); speedCard.setBackground(ui.surface(ui.card,ui.border,20));
+        speedCard.setClickable(true);
         speed=ui.text("—",60,ui.text); speed.setGravity(Gravity.CENTER); speed.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); speedCard.addView(speed);
         Button units=ui.button(prefs.mph() ? "MPH" : "KM/H",()->{ prefs.toggleUnits(); renderLocation(); }); unit=units; units.setTextSize(13); units.setTextColor(ui.accent); units.setContentDescription("Toggle speed units"); speedCard.addView(units,new LinearLayout.LayoutParams(ui.dp(110),ui.dp(64)));
         FrameLayout.LayoutParams speedPosition=new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER_HORIZONTAL|Gravity.BOTTOM); speedPosition.bottomMargin=ui.dp(20); mapFrame.addView(speedCard,speedPosition);
         middle.addView(mapFrame,new LinearLayout.LayoutParams(-1,0,1));
         gps=ui.button("●  GPS · acquiring satellites",this::gpsAction); gps.setTextSize(13); middle.addView(gps,new LinearLayout.LayoutParams(-1,ui.dp(64)));
-        navigationFooter=ui.row(); guidance=ui.text("",13,ui.text); guidance.setMaxLines(3); navigationFooter.addView(guidance,new LinearLayout.LayoutParams(0,-2,1));
-        Button stop=ui.button("Stop",()->{ portal.route(null); renderLocation(); }); stop.setTextColor(ui.amber); navigationFooter.addView(stop,new LinearLayout.LayoutParams(ui.dp(72),ui.dp(64))); navigationFooter.setVisibility(View.GONE); middle.addView(navigationFooter);
+        navigationFooter=ui.row(); navigationFooter.setMinimumHeight(ui.dp(64)); guidance=ui.text("",13,ui.text); guidance.setMaxLines(3); navigationFooter.addView(guidance,new LinearLayout.LayoutParams(0,-2,1));
+        navigate=ui.button("Navigate",this::startPinnedNavigation); navigate.setTextColor(ui.accent); navigationFooter.addView(navigate,new LinearLayout.LayoutParams(ui.dp(100),ui.dp(64)));
+        cancelNavigation=ui.button("Stop",this::clearMapTarget); cancelNavigation.setTextColor(ui.amber); navigationFooter.addView(cancelNavigation,new LinearLayout.LayoutParams(ui.dp(76),ui.dp(64))); middle.addView(navigationFooter);
         TextView attribution=ui.text("© OpenStreetMap · OpenMapTiles · OpenFreeMap",10,ui.muted); attribution.setGravity(Gravity.CENTER); attribution.setMinHeight(ui.dp(24)); attribution.setOnClickListener(v->panels.attribution()); middle.addView(attribution);
 
         right.addView(ui.label("YOUR DRIVE. IN FOCUS.")); ui.gap(right,18);
@@ -222,10 +226,49 @@ public final class MainActivity extends Activity {
         speed.setText(valid && fix.hasSpeed() ? String.format(Locale.US,"%.0f",fix.getSpeed()*(prefs.mph() ? 2.236936292 : 3.6)) : "—");
         unit.setText(prefs.mph() ? "MPH" : "KM/H");
         String[] directions={"N","NE","E","SE","S","SW","W","NW"}; int bearing=(int)Math.round(portal.heading())%360;
-        heading.setText(valid ? String.format(Locale.US,"%03d°  /  %s",bearing,directions[(int)Math.round(bearing/45.0)%8]) : "—°  /  HEADING UP");
+        String mode=portal.following() ? "HEADING UP" : "EXPLORING";
+        heading.setText(valid ? String.format(Locale.US,"%03d° %s / %s",bearing,directions[(int)Math.round(bearing/45.0)%8],mode) : "—° / "+mode);
+        recenter.setTextColor(portal.following() ? ui.muted : ui.accent);
         gps.setText("●  " + (valid ? "GPS LOCK · ±"+(int)fix.getAccuracy()+" m" : gpsMessage.equals("Acquiring satellites") ? gpsMessage : "GPS · " + gpsMessage)); gps.setTextColor(valid ? ui.accent : ui.amber);
-        navigationFooter.setVisibility(portal.route==null ? View.GONE : View.VISIBLE);
-        if(portal.route!=null) guidance.setText(valid ? portal.route.guidance(fix,prefs.mph()) : "Waiting for GPS\n"+portal.route.destination.name);
+        Navigation.Place selected=portal.selection();
+        cancelNavigation.setVisibility(selected==null && portal.route==null ? View.GONE : View.VISIBLE);
+        navigate.setVisibility(selected==null ? View.GONE : View.VISIBLE);
+        navigate.setEnabled(selected!=null && valid && !pinRouting && prefs.data.getBoolean("online_maps",false));
+        cancelNavigation.setText(selected==null ? "Stop" : "Clear");
+        if(selected!=null) {
+            String coordinates=String.format(Locale.US,"%.5f, %.5f",selected.lat,selected.lon);
+            String distance=valid ? Navigation.distance(com.breakdash.launcher.core.RouteProgress.distance(fix.getLatitude(),fix.getLongitude(),selected.lat,selected.lon),prefs.mph())+" away" : "Waiting for GPS";
+            guidance.setText((pinRouting ? "Calculating route…" : "Pinned location · "+distance)+"\n"+coordinates);
+        } else if(portal.route!=null) guidance.setText(valid ? portal.route.guidance(fix,prefs.mph()) : "Waiting for GPS\n"+portal.route.destination.name);
+        else guidance.setText(prefs.data.getBoolean("online_maps",false) ? "Drag to explore · hold a point to navigate" : "Connect online maps in Settings to explore");
+    }
+    private void pinDestination(Navigation.Place place) {
+        cancelPinnedRoute(); portal.pin(place); renderLocation();
+    }
+    private void startPinnedNavigation() {
+        Navigation.Place destination=portal.selection(); Location origin=portal.fix();
+        if(destination==null || pinRouting) return;
+        if(!prefs.data.getBoolean("online_maps",false)) { panels.onlineMaps(); return; }
+        if(origin==null) { toast("Wait for a fresh GPS fix before starting navigation"); return; }
+        cancelPinnedRoute(); pinRouting=true; pinnedRouteScope=tasks.scope(); renderLocation();
+        pinnedRouteScope.run(()->Navigation.route(prefs,origin,destination),this::showRoute,error->{
+            cancelPinnedRoute(); renderLocation(); toast("Route unavailable: "+error.getMessage());
+        });
+    }
+    private void cancelPinnedRoute() {
+        if(pinnedRouteScope!=null) { pinnedRouteScope.close(); pinnedRouteScope=null; }
+        pinRouting=false;
+    }
+    private void clearMapTarget() {
+        cancelPinnedRoute();
+        if(portal.selection()!=null) portal.clearSelection(); else portal.route(null);
+        renderLocation();
+    }
+    void showRoute(Navigation.Route route) {
+        cancelPinnedRoute(); portal.route(route); renderLocation();
+    }
+    void clearNavigation() {
+        cancelPinnedRoute(); portal.route(null); renderLocation();
     }
     private void gpsAction() {
         if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
@@ -246,6 +289,7 @@ public final class MainActivity extends Activity {
             if(show) {
                 visible=tasks.scope(); radio.start(); tasks.main.post(tick); maybeCheckUpdate();
             } else {
+                if(pinRouting) { cancelPinnedRoute(); renderLocation(); }
                 radio.stop(); tasks.main.removeCallbacks(tick); if(visible!=null) visible.close();
             }
         }
@@ -271,5 +315,5 @@ public final class MainActivity extends Activity {
     @Override public void onLowMemory() { super.onLowMemory(); portal.mapView.onLowMemory(); catalog.clearIcons(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if(level>=TRIM_MEMORY_RUNNING_LOW) { portal.mapView.onLowMemory(); catalog.clearIcons(); } }
     @Override public void onBackPressed() { if(!panels.empty()) panels.closeTop(); else panels.settings(); }
-    @Override protected void onDestroy() { resumed=false; panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
+    @Override protected void onDestroy() { resumed=false; cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
 }

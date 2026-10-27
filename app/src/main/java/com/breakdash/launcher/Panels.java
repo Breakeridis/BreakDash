@@ -162,7 +162,7 @@ final class Panels implements AutoCloseable {
                     results.removeAllViews(); state.setText(places.isEmpty() ? "No places found" : "Select a destination");
                     for(Navigation.Place place:places) fullButton(results,place.name+"\n"+Navigation.distance(com.breakdash.launcher.core.RouteProgress.distance(origin.getLatitude(),origin.getLongitude(),place.lat,place.lon),main.prefs.mph()),()->{
                         if(panel.busy) return; panel.busy=true; generation[0]++; main.tasks.main.removeCallbacks(perform[0]); query.setEnabled(false); results.removeAllViews(); state.setText("Calculating driving route…");
-                        panel.scope.run(()->Navigation.route(main.prefs,origin,place),route->{ main.portal.route(route); panel.dismiss(); },error->{ panel.busy=false; query.setEnabled(true); state.setText(error.getMessage()); });
+                        panel.scope.run(()->Navigation.route(main.prefs,origin,place),route->{ main.showRoute(route); panel.dismiss(); },error->{ panel.busy=false; query.setEnabled(true); state.setText(error.getMessage()); });
                     });
                 }
                 if(queued[0]!=null) main.tasks.main.postDelayed(perform[0],700);
@@ -210,7 +210,7 @@ final class Panels implements AutoCloseable {
         explain(panel.body,"Downloads use F-Droid with official Aurora GitLab as fallback. Android asks before installation. F-Droid and upstream builds may use different signing certificates.");
         ui.heading(panel.body,"MAP & CONNECTIONS");
         fullButton(panel.body,main.prefs.data.getBoolean("online_maps",false) ? "Disconnect online maps" : "Connect online maps",()->{
-            if(main.prefs.data.getBoolean("online_maps",false)) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.portal.route(null); main.portal.reloadOnlineChoice(); panel.dismiss(); }
+            if(main.prefs.data.getBoolean("online_maps",false)) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); panel.dismiss(); }
             else onlineMaps();
         });
         fullButton(panel.body,"Connections & provider settings",this::connections);
@@ -322,7 +322,7 @@ final class Panels implements AutoCloseable {
                 }
                 for(String[] definition:definitions) main.prefs.put(definition[0],fields.get(definition[0]).getText().toString().trim());
                 main.prefs.data.edit().putLong("update_checked",0).apply(); main.release=null; main.updateBadge();
-                if(mapsChanged) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.portal.route(null); main.portal.reloadOnlineChoice(); }
+                if(mapsChanged) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); }
                 panel.message("Connections saved" + (mapsChanged ? " · reconnect maps to use the new providers" : "")); panel.dismiss();
             } catch(Exception error) { panel.message(error.getMessage()); }
         });

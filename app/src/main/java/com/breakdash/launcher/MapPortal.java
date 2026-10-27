@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -13,10 +14,14 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.View;
+import android.view.MotionEvent;
+import android.view.HapticFeedbackConstants;
 import android.widget.FrameLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.Locale;
+import com.breakdash.launcher.core.MapTracking;
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
 import org.maplibre.android.camera.CameraUpdateFactory;
@@ -29,6 +34,7 @@ import org.maplibre.android.maps.Style;
 import org.maplibre.android.style.layers.CircleLayer;
 import org.maplibre.android.style.layers.LineLayer;
 import org.maplibre.android.style.layers.PropertyFactory;
+import org.maplibre.android.style.layers.SymbolLayer;
 import org.maplibre.android.style.sources.GeoJsonSource;
 import org.maplibre.geojson.Feature;
 import org.maplibre.geojson.FeatureCollection;
@@ -47,16 +53,18 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private int background = Color.rgb(10,14,23);
     private Location lastFix;
     private double bearing;
-    private long frameDestinationUntil;
+    private final MapTracking tracking = new MapTracking();
+    private Navigation.Place selection;
+    private final Runnable finishPreview = () -> { if (active) renderFix(); };
     Navigation.Route route;
 
-    MapPortal(Activity activity, Prefs prefs, Bundle saved, Consumer<Location> changed, Consumer<String> status, Runnable launchNavigation) {
+    MapPortal(Activity activity, Prefs prefs, Bundle saved, Consumer<Location> changed, Consumer<String> status, Consumer<Navigation.Place> selected) {
         super(activity);
         this.activity = activity; this.prefs = prefs; this.changed = changed; this.status = status;
         locations = (LocationManager) activity.getSystemService(Activity.LOCATION_SERVICE);
         MapLibre.getInstance(activity);
-        mapView = new MapView(activity, new MapLibreMapOptions().textureMode(false).compassEnabled(false).rotateGesturesEnabled(false)
-                .scrollGesturesEnabled(false).zoomGesturesEnabled(false).tiltGesturesEnabled(false));
+        mapView = new MapView(activity, new MapLibreMapOptions().textureMode(false).compassEnabled(false).rotateGesturesEnabled(true)
+                .scrollGesturesEnabled(true).zoomGesturesEnabled(true).tiltGesturesEnabled(false));
         addView(mapView, new LayoutParams(-1,-1)); mapView.onCreate(saved); mapView.setMaximumFps(20);
         mapView.addOnDidFailLoadingMapListener(error -> status.accept("Map unavailable · check internet"));
         // Mask outside the circle without a TextureView or extra offscreen framebuffer.
@@ -65,7 +73,18 @@ final class MapPortal extends FrameLayout implements LocationListener {
             if (destroyed) return;
             map = ready; map.setPrefetchZoomDelta(0); map.setTileCacheEnabled(false);
             map.getUiSettings().setCompassEnabled(false); map.getUiSettings().setLogoEnabled(false); map.getUiSettings().setAttributionEnabled(false);
-            map.addOnMapClickListener(point -> { launchNavigation.run(); return true; });
+            map.addOnCameraMoveStartedListener(reason -> {
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    tracking.explore(); removeCallbacks(finishPreview); changed.accept(fix());
+                }
+            });
+            map.addOnMapLongClickListener(point -> {
+                if (!prefs.data.getBoolean("online_maps",false)) { status.accept("Connect online maps to choose a destination"); return true; }
+                double lon = ((point.getLongitude()+180)%360+360)%360-180;
+                Navigation.Place place = new Navigation.Place(String.format(Locale.US,"Pinned location (%.5f, %.5f)",point.getLatitude(),lon),point.getLatitude(),lon);
+                mapView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                selected.accept(place); return true;
+            });
             applyStyle();
         });
     }
@@ -84,17 +103,50 @@ final class MapPortal extends FrameLayout implements LocationListener {
             style.addLayer(new LineLayer("breakdash-route-halo", "breakdash-route").withProperties(PropertyFactory.lineColor("#0A0E17"),PropertyFactory.lineWidth(10f)));
             style.addLayer(new LineLayer("breakdash-route-line", "breakdash-route").withProperties(PropertyFactory.lineColor("#42D6CB"),PropertyFactory.lineWidth(5f)));
             style.addSource(new GeoJsonSource("breakdash-destination", empty()));
-            style.addLayer(new CircleLayer("breakdash-destination-dot", "breakdash-destination").withProperties(PropertyFactory.circleColor("#F2B86B"),PropertyFactory.circleRadius(8f),PropertyFactory.circleStrokeColor("#0A0E17"),PropertyFactory.circleStrokeWidth(3f)));
+            style.addImage("breakdash-pin",pinImage());
+            style.addLayer(pinLayer("breakdash-destination-pin","breakdash-destination"));
+            style.addSource(new GeoJsonSource("breakdash-selection", empty()));
+            style.addLayer(pinLayer("breakdash-selection-pin","breakdash-selection"));
             style.addSource(new GeoJsonSource("breakdash-vehicle", empty()));
             style.addLayer(new CircleLayer("breakdash-vehicle-dot", "breakdash-vehicle").withProperties(PropertyFactory.circleColor("#42D6CB"),PropertyFactory.circleRadius(7f),PropertyFactory.circleStrokeColor("#FFFFFF"),PropertyFactory.circleStrokeWidth(2f)));
-            renderRoute(); renderFix();
+            renderRoute(); renderSelection(); renderFix();
         });
+    }
+    private SymbolLayer pinLayer(String id,String source) {
+        return new SymbolLayer(id,source).withProperties(PropertyFactory.iconImage("breakdash-pin"),PropertyFactory.iconAnchor("bottom"),
+                PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true));
+    }
+    private Bitmap pinImage() {
+        Bitmap image = Bitmap.createBitmap(32,44,Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(image); Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG); Path pin = new Path();
+        pin.moveTo(16,43); pin.cubicTo(12,35,1,25,1,16); pin.cubicTo(1,-4,31,-4,31,16); pin.cubicTo(31,25,20,35,16,43); pin.close();
+        paint.setColor(Color.parseColor("#F2B86B")); canvas.drawPath(pin,paint);
+        paint.setColor(Color.parseColor("#0A0E17")); canvas.drawCircle(16,15,6,paint); return image;
+    }
+    void pin(Navigation.Place place) {
+        selection=place; tracking.explore(); removeCallbacks(finishPreview); renderSelection(); changed.accept(fix());
+    }
+    Navigation.Place selection() { return selection; }
+    void clearSelection() { selection=null; renderSelection(); changed.accept(fix()); }
+    boolean following() { return tracking.following(); }
+    void recenter() {
+        if(map!=null) { map.cancelAllVelocityAnimations(); map.cancelTransitions(); }
+        tracking.recenter(); removeCallbacks(finishPreview); renderFix(); changed.accept(fix());
+    }
+    private void renderSelection() {
+        if(map==null || map.getStyle()==null) return;
+        GeoJsonSource source=map.getStyle().getSourceAs("breakdash-selection");
+        if(source==null) return;
+        if(selection==null) source.setGeoJson(empty());
+        else source.setGeoJson(Point.fromLngLat(selection.lon,selection.lat));
     }
     private FeatureCollection empty() { return FeatureCollection.fromFeatures(new Feature[0]); }
     void active(boolean value) {
         if (active == value) return; active = value;
-        if (!value) { locations.removeUpdates(this); mapView.onPause(); return; }
+        if (!value) { removeCallbacks(finishPreview); locations.removeUpdates(this); mapView.onPause(); return; }
         mapView.onResume();
+        long previewLeft=tracking.previewRemaining(SystemClock.elapsedRealtime());
+        if(previewLeft>0) postDelayed(finishPreview,previewLeft);
         if (activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) { status.accept("Tap GPS to allow location"); return; }
         try {
             if (!locations.isProviderEnabled(LocationManager.GPS_PROVIDER)) { status.accept("GPS is switched off"); return; }
@@ -117,16 +169,19 @@ final class MapPortal extends FrameLayout implements LocationListener {
         Style style=map.getStyle(); if (style==null) return;
         GeoJsonSource source=style.getSourceAs("breakdash-vehicle");
         if (source!=null) source.setGeoJson(Point.fromLngLat(lastFix.getLongitude(),lastFix.getLatitude()));
-        if (SystemClock.elapsedRealtime()>=frameDestinationUntil) map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude())).zoom(15.5).bearing(bearing).build()));
+        if (tracking.shouldFollow(SystemClock.elapsedRealtime())) map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude())).zoom(15.5).bearing(bearing).build()));
     }
     void route(Navigation.Route value) {
-        route=value; renderRoute();
+        route=value; selection=null; removeCallbacks(finishPreview); renderSelection(); renderRoute();
         if (map!=null && value!=null) {
             List<LatLng> points=new ArrayList<>();
             for (Point point:value.geometry) points.add(new LatLng(point.latitude(),point.longitude()));
-            frameDestinationUntil=SystemClock.elapsedRealtime()+6500;
+            map.cancelAllVelocityAnimations();
+            tracking.previewRoute(SystemClock.elapsedRealtime());
             map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),80));
-        } else { frameDestinationUntil=0; renderFix(); }
+            if(active) postDelayed(finishPreview,MapTracking.ROUTE_PREVIEW_MS);
+        } else { tracking.recenter(); renderFix(); }
+        changed.accept(fix());
     }
     private void renderRoute() {
         if (map==null || map.getStyle()==null) return;
@@ -135,7 +190,14 @@ final class MapPortal extends FrameLayout implements LocationListener {
         if (route==null) { line.setGeoJson(empty()); pin.setGeoJson(empty()); }
         else { line.setGeoJson(LineString.fromLngLats(route.geometry)); pin.setGeoJson(Point.fromLngLat(route.destination.lon,route.destination.lat)); }
     }
-    void destroy() { active(false); destroyed=true; mapView.onDestroy(); }
+    void destroy() { removeCallbacks(finishPreview); active(false); destroyed=true; mapView.onDestroy(); }
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if(event.getActionMasked()==MotionEvent.ACTION_DOWN) {
+            float dx=event.getX()-getWidth()/2f,dy=event.getY()-getHeight()/2f,radius=Math.min(getWidth(),getHeight())/2f-14;
+            if(dx*dx+dy*dy>radius*radius) return false;
+        }
+        return super.dispatchTouchEvent(event);
+    }
     @Override public void onProviderEnabled(String provider) { status.accept("Acquiring satellites"); }
     @Override public void onProviderDisabled(String provider) { lastFix=null; status.accept("GPS is switched off"); changed.accept(null); }
     @Override public void onStatusChanged(String provider,int status,Bundle extras) {}

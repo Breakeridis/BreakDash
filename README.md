@@ -22,7 +22,8 @@ The two APKs are standalone installers, each containing only one native architec
 
 - **Clock:** follows Android's locale, date, time zone, and 12/24-hour setting; seconds update while visible.
 - **Radio:** seek, audio on/standby, band change, live frequency, PS/RT, and six presets. Tap a preset to tune; hold to save to the MCU and local preferences. Tap RADIO to open the stock app.
-- **Map:** heading-up vector roads, GPS accuracy indicator, compass, and speed. Tap KM/H or MPH to persist your preferred units. Tap the map to open your chosen external navigation app.
+- **Map:** heading-up vector roads, GPS accuracy indicator, compass, and speed. Drag to pan, pinch or double-tap to zoom, and use two fingers to rotate. Gestures pause camera following so GPS cannot snap you back while browsing; tap **Recenter** to restore heading-up tracking. Tap KM/H or MPH to persist your preferred units. The Navigate quick tile opens your chosen external navigation app.
+- **Pinned destinations:** hold a point on the map to place an amber pin. Tap **Navigate** beneath the map to calculate a driving route from your current GPS fix, or **Clear** to remove the pending pin. Pinning does not make a search or route request; calculation starts only when you choose Navigate. GPS speed and heading continue updating while you browse. A fresh GPS fix and connected online maps are required to start the route.
 - **Route search:** after connecting online maps and obtaining a fresh fix, tap search for debounced address suggestions. Select a result for a route, destination pin, distance, and visual next-turn guidance. Stop cancels guidance. If you leave the route, the banner asks you to search again; there is no continuous rerouting or voice guidance.
 - **Quick tiles:** dashcam, phone projection, navigation, and music. Tap to launch; hold to choose an installed app. ZLink/AutoKit/TLink detection uses installed app labels.
 - **Dock:** All Apps opens a searchable grid; hold an app in that grid to pin it. The scrollable dock supports four favorites. Hold a pinned shortcut to replace or remove it.
@@ -69,7 +70,7 @@ Cloud uploads remain unavailable until you configure an HTTPS receiver and publi
 | Location | Purpose |
 | --- | --- |
 | `app/src/main/java/com/breakdash/launcher` | Platform UI, lifecycle, radio, GPS/map, apps, updates, and settings |
-| `app/src/main/java/com/breakdash/launcher/core` | Pure Java frequency, semantic version, and route-progress logic |
+| `app/src/main/java/com/breakdash/launcher/core` | Pure Java frequency, semantic version, camera tracking, and route-progress logic |
 | `app/src/test` | CI-only tests for units, boundaries, update ordering, and route progression |
 | `.github/workflows/android.yml` | Remote checks, APK artifacts, signing, and releases |
 | `backend` | Optional encrypted-file inbox and owner decryption utility |
