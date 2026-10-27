@@ -240,6 +240,7 @@ public final class MainActivity extends Activity {
         String repository=prefs.get("repository",BuildConfig.GITHUB_REPOSITORY);
         if(updateAttempted || repository.isEmpty() || System.currentTimeMillis()-prefs.data.getLong("update_checked",0)<86400000L) return;
         updateAttempted=true;
+        prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply();
         visible.run(()->Downloads.latest(repository),value->{
             release=value; prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply(); updateBadge();
         },error->{ /* A failed automatic check does not interrupt the cockpit. Manual check shows details. */ });
