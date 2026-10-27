@@ -37,12 +37,29 @@ jobs:
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build, lint, and run JVM tests on GitHub
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:lintRelease :app:assembleRelease
-      - name: Name APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk BreakDash-debug-armeabi-v7a.apk
+      - name: Name APKs and check native architectures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in armeabi-v7a arm64-v8a; do
+            artifact="BreakDash-debug-${abi}.apk"
+            cp "app/build/outputs/apk/debug/app-${abi}-debug.apk" "$artifact"
+            native_abis=$(unzip -Z -1 "$artifact" | awk -F/ '/^lib\/[^/]+\/.*\.so$/ {print $2}' | sort -u)
+            if [[ "$native_abis" != "$abi" ]]; then
+              echo "Unexpected native libraries in $artifact: $native_abis"; exit 1
+            fi
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$artifact"
+          done
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: BreakDash-debug-armeabi-v7a
           path: BreakDash-debug-armeabi-v7a.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: BreakDash-debug-arm64-v8a
+          path: BreakDash-debug-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload check reports
@@ -111,10 +128,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact="BreakDash-${GITHUB_REF_NAME}-armeabi-v7a.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$artifact"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$artifact"
-          sha256sum "$artifact" > "$artifact.sha256"
+          for abi in armeabi-v7a arm64-v8a; do
+            artifact="BreakDash-${GITHUB_REF_NAME}-${abi}.apk"
+            cp "app/build/outputs/apk/release/app-${abi}-release.apk" "$artifact"
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$artifact"
+            sha256sum "$artifact" > "$artifact.sha256"
+          done
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: BreakDash-signed-release

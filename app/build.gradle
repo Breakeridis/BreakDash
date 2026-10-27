@@ -16,10 +16,20 @@ android {
         targetSdk 35
         versionCode parts[0] * 1000000 + parts[1] * 1000 + parts[2]
         versionName appVersion
-        ndk { abiFilters 'armeabi-v7a' }
         buildConfigField 'String', 'GITHUB_REPOSITORY', literal(setting('BREAKDASH_REPOSITORY', 'Breakeridis/BreakDash'))
         buildConfigField 'String', 'DIAGNOSTICS_URL', literal(setting('BREAKDASH_DIAGNOSTICS_URL', ''))
         buildConfigField 'String', 'DIAGNOSTICS_PUBLIC_KEY', literal(setting('BREAKDASH_DIAGNOSTICS_PUBLIC_KEY', ''))
+    }
+
+    // Each standalone APK contains only its device's native libraries.
+    // Keep the 32-bit head-unit download small while supporting 64-bit-only phones.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a'
+            universalApk false
+        }
     }
 
     signingConfigs {

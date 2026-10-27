@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.provider.Settings;
 import androidx.core.content.FileProvider;
 import com.breakdash.launcher.core.Versions;
+import com.breakdash.launcher.core.ReleaseAssets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,10 +38,12 @@ final class Downloads {
         if(release.optBoolean("draft") || release.optBoolean("prerelease")) throw new IOException("No stable release found");
         String tag=release.getString("tag_name"),url="",digest="";
         JSONArray assets=release.getJSONArray("assets");
+        int bestPriority=Integer.MAX_VALUE;
         for(int i=0;i<assets.length();i++) {
             JSONObject asset=assets.getJSONObject(i); String name=asset.getString("name");
-            if(name.matches("(?i)BreakDash-v?[0-9.]+-armeabi-v7a\\.apk")) {
-                url=asset.getString("browser_download_url"); digest=asset.optString("digest",""); break;
+            int priority=ReleaseAssets.priority(name,android.os.Build.SUPPORTED_ABIS);
+            if(priority<bestPriority) {
+                bestPriority=priority; url=asset.getString("browser_download_url"); digest=asset.optString("digest","");
             }
         }
         return new Release(tag,release.optString("body","No release notes"),url,digest,Versions.compare(tag,BuildConfig.VERSION_NAME)>0);

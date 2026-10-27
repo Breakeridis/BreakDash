@@ -242,7 +242,7 @@ final class Panels implements AutoCloseable {
     void about() {
         Panel panel=new Panel("About BreakDash",true);
         TextView name=ui.text("BreakDash",38,ui.text); name.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); panel.body.addView(name);
-        explain(panel.body,"Version "+BuildConfig.VERSION_NAME+" · Android "+android.os.Build.VERSION.SDK_INT+" · 32-bit ARM\nBuilt for a lighter drive.");
+        explain(panel.body,"Version "+BuildConfig.VERSION_NAME+" · Android "+android.os.Build.VERSION.SDK_INT+" · "+(android.os.Process.is64Bit() ? "64-bit ARM" : "32-bit ARM")+"\nBuilt for a lighter drive.");
         fullButton(panel.body,main.prefs.light() ? "Switch to obsidian night theme" : "Switch to daylight theme",()->{ main.prefs.light(!main.prefs.light()); main.recreateTheme(); });
         ui.heading(panel.body,"SOFTWARE UPDATES");
         TextView update=ui.text(main.release==null ? "Check the latest GitHub release" : main.release.tag+"\n"+main.release.notes,16,ui.text); panel.body.addView(update);

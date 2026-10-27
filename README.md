@@ -8,11 +8,13 @@ The app uses Android platform Views, direct hardware radio IPC, and one MapLibre
 
 1. Open [Build BreakDash in GitHub Actions](https://github.com/Breakeridis/BreakDash/actions/workflows/android.yml).
 2. Select the latest successful run, or choose **Run workflow**.
-3. Download **BreakDash-debug-armeabi-v7a** from its artifacts and extract the APK.
+3. Download **BreakDash-debug-armeabi-v7a** for the head unit, or **BreakDash-debug-arm64-v8a** for a Pixel 7 Pro / other 64-bit ARM phone, and extract the APK.
 4. Copy it to the head unit and install it through Android's installer.
 5. Open BreakDash and allow precise location when you tap GPS. In Settings, choose **Choose default Home app** if you want it to replace the stock launcher.
 
 The first artifact is a development build with package ID `com.breakdash.launcher.debug`. Release builds use `com.breakdash.launcher`; the two can coexist. GitHub's default debug signing key is ephemeral, so installing a later development APK may require removing the previous development installation. Signed release builds support updates without losing preferences.
+
+The two APKs are standalone installers, each containing only one native architecture. The 32-bit head-unit download does not include the phone's 64-bit libraries. Pixel 7 and Pixel 7 Pro require the `arm64-v8a` build because they cannot run 32-bit apps. The cockpit scales to fit a phone in landscape for UI testing; the NWD radio and other vendor-only apps remain unavailable on a phone.
 
 **No local app builds, test runs, emulators, or SDK installations are required.** GitHub installs the pinned Gradle/Android toolchain, runs JVM tests and Android lint for both build types, checks an optimized unsigned release build and the encrypted report receiver, and publishes the installable development APK. There is deliberately no wrapper JAR or local build bootstrap script. Unsigned release builds are validation outputs only and are not published as installation artifacts.
 
@@ -50,9 +52,9 @@ In repository **Settings → Secrets and variables → Actions**, add:
 
 Generate and back up your signing key in a trusted environment, such as a private GitHub Codespace cloud terminal; no local app compilation is needed. Keep this same key for every release. Do not commit it, paste it in issues, or include it in APKs.
 
-Create and push a stable tag such as `v1.0.0` using GitHub or a cloud terminal. The workflow runs checks, builds and shrinks the signed release, verifies its signature, creates its SHA-256 file, and publishes both to GitHub Releases. Signing secrets are mandatory for the release job; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).
+Create and push a stable tag such as `v1.0.0` using GitHub or a cloud terminal. The workflow runs checks, builds and shrinks both ARM variants, verifies their signatures, creates their SHA-256 files, and publishes them to GitHub Releases. Signing secrets are mandatory for the release job; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).
 
-The updater reads `Breakeridis/BreakDash` by default. It accepts the matching ARM APK, validates its package, increasing version code and signing certificate, checks GitHub's SHA-256 asset digest when supplied, and invokes the Android installer. The system's **Allow from this source** permission is required. Development builds disable release installation because they have a different package/signature.
+The updater reads `Breakeridis/BreakDash` by default. It selects an APK using Android's preferred supported ARM architecture, validates its package, increasing version code and signing certificate, checks GitHub's SHA-256 asset digest when supplied, and invokes the Android installer. The system's **Allow from this source** permission is required. Development builds disable release installation because they have a different package/signature.
 
 ## Google controls and diagnostics
 

@@ -74,7 +74,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams leftParams=new LinearLayout.LayoutParams(0,-1,1),midParams=new LinearLayout.LayoutParams(0,-1,1.55f),rightParams=new LinearLayout.LayoutParams(0,-1,1);
         leftParams.setMargins(0,0,ui.dp(16),0); rightParams.setMargins(ui.dp(16),0,0,0);
         root.addView(left,leftParams); root.addView(middle,midParams); root.addView(right,rightParams);
-        setContentView(root);
+        setContentView(new CockpitViewport(this,root,ui.bg));
 
         TextView brand=ui.label("B R E A K D A S H   /   COCKPIT"); brand.setTextColor(ui.accent); left.addView(brand); ui.gap(left,18);
         LinearLayout timeRow=ui.row(); timeRow.setGravity(Gravity.BOTTOM);
