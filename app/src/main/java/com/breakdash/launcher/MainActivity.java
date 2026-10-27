@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
     private final Button[] presets=new Button[6];
     private LinearLayout favorites;
     private LinearLayout navigationFooter;
+    private final java.util.Map<String,TextView> tileCaptions=new java.util.HashMap<>(),tileHints=new java.util.HashMap<>();
     private String gpsMessage="Acquiring satellites";
     private final Runnable tick=new Runnable() {
         @Override public void run() {
@@ -139,8 +140,8 @@ public final class MainActivity extends Activity {
                 LinearLayout tile=ui.column(); tile.setGravity(Gravity.CENTER); tile.setPadding(ui.dp(8),ui.dp(14),ui.dp(8),ui.dp(14));
                 tile.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),ui.surface(ui.card,ui.border,22),null));
                 tile.addView(ui.glyph(key,index==1 ? ui.amber : ui.accent),new LinearLayout.LayoutParams(ui.dp(38),ui.dp(38))); ui.gap(tile,18);
-                TextView caption=ui.text(label,18,ui.text); caption.setGravity(Gravity.CENTER); tile.addView(caption);
-                TextView hint=ui.text("Hold to choose app",11,ui.muted); hint.setGravity(Gravity.CENTER); ui.gap(tile,8); tile.addView(hint);
+                TextView caption=ui.text(label,18,ui.text); caption.setGravity(Gravity.CENTER); tile.addView(caption); tileCaptions.put(key,caption);
+                TextView hint=ui.text("Hold to choose app",11,ui.muted); hint.setGravity(Gravity.CENTER); hint.setMaxLines(1); hint.setEllipsize(android.text.TextUtils.TruncateAt.END); ui.gap(tile,8); tile.addView(hint); tileHints.put(key,hint);
                 tile.setContentDescription(label + ", hold to choose app"); tile.setFocusable(true); tile.setOnClickListener(v->launchSlot(key)); tile.setOnLongClickListener(v->{ chooseSlot(key); return true; });
                 LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(0,-1,1); tileParams.setMargins(ui.dp(4),ui.dp(4),ui.dp(4),ui.dp(4)); cardRow.addView(tile,tileParams);
             }
@@ -155,9 +156,17 @@ public final class MainActivity extends Activity {
         if(prefs.get("slot_projection","").isEmpty()) prefs.put("slot_projection",AppCatalog.projection(apps));
         if(prefs.get("slot_music","").isEmpty()) assignPackage("music","com.nwd.android.music.ui");
         if(prefs.get("slot_nav","").isEmpty()) for(String name:new String[]{"com.google.android.apps.maps","net.osmand.plus","net.osmand","com.waze"}) if(assignPackage("nav",name)) break;
+        renderTiles();
     }
     private boolean assignPackage(String key,String name) { for(AppCatalog.App app:apps) if(app.packageName.equals(name)) { prefs.put("slot_"+key,app.component); return true; } return false; }
-    void chooseSlot(String key) { panels.appPicker("Choose " + key,null,app->{ prefs.put("slot_"+key,app.component); toast(app.label + " selected"); }); }
+    void chooseSlot(String key) { panels.appPicker("Choose " + key,null,app->{ prefs.put("slot_"+key,app.component); renderTiles(); toast(app.label + " selected"); }); }
+    private void renderTiles() {
+        for(String key:new String[]{"dvr","projection","nav","music"}) {
+            AppCatalog.App app=find(prefs.get("slot_"+key,""));
+            TextView hint=tileHints.get(key); if(hint!=null) hint.setText(app==null ? "Hold to choose app" : app.label);
+            if(key.equals("projection") && tileCaptions.get(key)!=null) tileCaptions.get(key).setText(app==null ? "Phone link" : app.label);
+        }
+    }
     void launchSlot(String key) { String component=prefs.get("slot_"+key,""); if(component.isEmpty()) chooseSlot(key); else launch(component); }
     void launch(String value) {
         try {
@@ -183,6 +192,12 @@ public final class MainActivity extends Activity {
         for(String value:values) {
             AppCatalog.App app=find(value); String label=app==null ? "Missing" : app.label;
             Button button=ui.button(label,()->launch(value)); button.setTextSize(11); button.setMaxLines(2);
+            button.setContentDescription(label);
+            if(app!=null) {
+                android.graphics.drawable.Drawable icon=catalog.icon(app).getConstantState().newDrawable();
+                icon.setBounds(0,0,ui.dp(28),ui.dp(28)); button.setCompoundDrawables(null,icon,null,null); button.setCompoundDrawablePadding(ui.dp(4));
+                button.setMaxLines(1); button.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            }
             button.setOnLongClickListener(v->{ panels.dockAction(value); return true; });
             LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(ui.dp(80),ui.dp(80)); params.setMargins(ui.dp(4),0,0,0); favorites.addView(button,params);
         }

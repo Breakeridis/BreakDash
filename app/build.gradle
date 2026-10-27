@@ -58,6 +58,9 @@ android {
 dependencies {
     implementation 'org.maplibre.gl:android-sdk:11.8.2'
     implementation 'androidx.core:core:1.15.0'
-    implementation 'dev.mobile:dadb:1.2.9'
+    implementation('dev.mobile:dadb:1.2.9') {
+        // Upstream accidentally publishes its Graal/JUnit launcher as a runtime dependency.
+        exclude group: 'org.graalvm.buildtools', module: 'junit-platform-native'
+    }
     testImplementation 'junit:junit:4.13.2'
 }

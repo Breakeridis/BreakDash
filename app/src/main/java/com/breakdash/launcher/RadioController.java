@@ -39,6 +39,8 @@ final class RadioController {
     private Tasks.Scope scope;
     private boolean started, bound, registered, observed;
     private volatile IBinder binder;
+    private String lastDescriptor="Not observed";
+    private long lastConnected;
     private final Handler main = new Handler(Looper.getMainLooper());
     RadioController(Context context, Tasks tasks, Consumer<State> changed, Consumer<String> errors) {
         this.context = context; this.tasks = tasks; this.changed = changed; this.errors = errors;
@@ -51,7 +53,7 @@ final class RadioController {
                 String actual = service.getInterfaceDescriptor();
                 if (!DESCRIPTOR.equals(actual)) throw new IllegalStateException("Unexpected tuner: " + actual);
                 return actual;
-            }, ignored -> { state.connected = true; state.error = ""; readSettings(); requestState(); readRt(); });
+            }, actual -> { lastDescriptor=actual; lastConnected=System.currentTimeMillis(); state.connected = true; state.error = ""; readSettings(); requestState(); readRt(); });
         }
         @Override public void onServiceDisconnected(ComponentName name) { disconnected("Tuner service disconnected"); }
         @Override public void onBindingDied(ComponentName name) { disconnected("Tuner binding died; reopen dashboard to reconnect"); }
@@ -160,7 +162,9 @@ final class RadioController {
         scope.run(work, success, error -> { rtPending = false; state.error = error.getMessage(); errors.accept(state.error); changed.accept(state); });
     }
     String diagnostics() {
-        return "Radio descriptor: " + DESCRIPTOR + "\nConnected: " + state.connected + "\nFrequency: " + state.frequency
+        return "Expected radio descriptor: " + DESCRIPTOR + "\nLast observed descriptor: " + lastDescriptor
+                + "\nLast successful connection: " + (lastConnected==0 ? "Never" : new java.util.Date(lastConnected))
+                + "\nDashboard binding currently connected: " + state.connected + " (released while dialogs are open)\nFrequency: " + state.frequency
                 + "\nBand (raw): " + state.band + "\nPlaying: " + state.playing + "\nMCU source: " + state.source
                 + "\nPS: " + state.ps + "\nRT: " + state.rt + "\nLast error: " + state.error
                 + "\nFM: 8750..10800 (10 kHz units); AM: 531..1620 kHz\n"

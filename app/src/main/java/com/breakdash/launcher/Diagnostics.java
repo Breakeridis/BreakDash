@@ -25,7 +25,7 @@ import org.json.JSONObject;
 /** Collected on demand; upload is invoked only by the explicit Upload report action. */
 final class Diagnostics {
     private Diagnostics() {}
-    private static boolean sensitive(String name) { return name.toLowerCase(java.util.Locale.US).matches(".*(serial|imei|imsi|password|secret|token|android_id|macaddr|address|ssid|hostname|account).*" ); }
+    private static boolean sensitive(String name) { return name.toLowerCase(java.util.Locale.US).matches(".*(serial|imei|imsi|password|secret|token|android_id|macaddr|bdaddr|address|ssid|hostname|account).*" ); }
     static String collect(Context context,String radio,boolean cloud) {
         StringBuilder report=new StringBuilder("BreakDash diagnostic report\n");
         report.append("Version: ").append(BuildConfig.VERSION_NAME).append("\nCaptured: ").append(new Date())
