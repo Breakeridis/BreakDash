@@ -1,4 +1,5 @@
 .gradle/
+.ci-reports/
 **/build/
 local.properties
 .idea/

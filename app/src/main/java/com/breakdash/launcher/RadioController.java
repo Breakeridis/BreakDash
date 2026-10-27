@@ -85,8 +85,7 @@ final class RadioController {
         IntentFilter filter = new IntentFilter();
         filter.addAction(NEW_FREQUENCY); filter.addAction(FREQUENCY); filter.addAction(RADIO_STATE);
         try {
-            if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
-            else context.registerReceiver(receiver, filter);
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
             registered = true;
             observed = true;
             for (String key : KEYS) context.getContentResolver().registerContentObserver(Settings.System.getUriFor(key), false, observer);
