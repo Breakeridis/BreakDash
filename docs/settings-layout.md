@@ -1,0 +1,29 @@
+# Settings, Updates and About
+
+Implemented in v1.0.2 for the 1280 × 720 head unit. This replaces the combined utility/dialog design in original specification sections 3.6–3.8.
+
+| Dashboard action | First screen | Further actions |
+| --- | --- | --- |
+| Settings | Left rail: Appearance, Maps, Apps, Device | Day/Night; map connection/providers; Aurora/Google; launcher, Android settings, health, advanced tools |
+| Updates | Installed/latest versions, status, download action | Check again, What's new, Update source |
+| About | Name/version and three tiles | Report a problem, Device info, Credits |
+
+Overview screens fit without scrolling on the reference head unit. Small phone landscape windows can scroll the rail and content independently. Tabs are 80 dp high, main panel actions 80 dp high, and dashboard utility tiles 80 dp high. Labels are short; technical details open on separate pages.
+
+Back dismisses one panel. Close dismisses the complete panel stack and cancels its work. Android Back also dismisses one panel. GPS/map/radio dashboard resources remain suspended while panels cover the cockpit. CPU/RAM sampling is restricted to the resumed, topmost Device health panel. Package state refreshes when the Google services page is shown or an action completes.
+
+The Maps connection screen explains the network/location requests before connecting; provider endpoints and extra details remain available through Provider details. Saving changed providers disconnects maps until reconnection. Map, update-source, and report configuration are separate forms and preserve other configuration.
+
+Updates explains disabled actions. A release with no newer version shows Up to date. A newer version without a matching ABI shows Update unavailable. BreakDash Dev offers a browser download of the signed release, which is a separate package. The production updater still verifies its own package, higher version code, signature, and supplied checksum before opening Android's installer.
+
+Reports follow note → preview → Encrypt & send. The preview includes the note and the captured report. Sending uses that same capture; it does not silently collect another one. Sending is disabled until capture completes and a receiver/public key is configured. Reports remain encrypted and are stored only by the user-configured receiver; there is no GitHub issue storage.
+
+Device checks after installing the signed APK:
+
+1. Verify all three utility tiles and the update badge fit on both head unit and phone.
+2. Switch Settings tabs, open children, use Back, and use Close from several levels deep.
+3. Connect/disconnect maps; save a changed map provider and verify reconnection is required.
+4. Return from Android settings or the installer and verify the parent page refreshes.
+5. Open Device health, background the app, return, and close it; verify no sampling remains on other pages.
+6. Confirm current release, newer release, failed check, and development-build update messaging.
+7. Preview a diagnostic capture with a note and confirm sending remains explicit and setup requirements are explained.

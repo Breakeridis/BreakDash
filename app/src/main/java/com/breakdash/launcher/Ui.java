@@ -50,6 +50,16 @@ final class Ui {
         view.setMinHeight(dp(60)); view.setMinimumHeight(dp(60));
         view.setPadding(dp(8),dp(4),dp(8),dp(4)); return view;
     }
+    LinearLayout actionTile(String title,String icon,Runnable click) {
+        return actionTile(title,icon,14,click);
+    }
+    LinearLayout actionTile(String title,String icon,int labelSize,Runnable click) {
+        LinearLayout tile=column(); tile.setGravity(Gravity.CENTER); tile.setPadding(dp(4),dp(8),dp(4),dp(8));
+        tile.setBackground(new RippleDrawable(ColorStateList.valueOf(light ? 0x22007C76 : 0x3342D6CB),surface(card,border,16),null));
+        tile.addView(glyph(icon,accent),new LinearLayout.LayoutParams(dp(28),dp(28)));
+        TextView caption=text(title,labelSize,text); caption.setGravity(Gravity.CENTER); caption.setMaxLines(2); caption.setPadding(0,dp(6),0,0); tile.addView(caption);
+        tile.setContentDescription(title); tile.setFocusable(true); tile.setOnClickListener(v->click.run()); return tile;
+    }
     EditText input(String hint) {
         EditText view=new EditText(context); view.setTextColor(text); view.setHintTextColor(muted); view.setHint(hint); view.setTextSize(18);
         view.setSingleLine(true); view.setMinHeight(dp(64)); view.setPadding(dp(16),dp(8),dp(16),dp(8)); view.setBackgroundTintList(ColorStateList.valueOf(accent)); return view;
@@ -76,6 +86,7 @@ final class Ui {
                 case "apps": for(int x=4;x<21;x+=8) for(int y=4;y<21;y+=8) canvas.drawRoundRect(x-2,y-2,x+2,y+2,1,1,paint); break;
                 case "settings": canvas.drawCircle(12,12,4,paint); for(int i=0;i<8;i++){ double a=i*Math.PI/4; line(canvas,12+(float)Math.cos(a)*8,12+(float)Math.sin(a)*8,12+(float)Math.cos(a)*10,12+(float)Math.sin(a)*10); } canvas.drawCircle(12,12,8,paint); break;
                 case "search": canvas.drawCircle(10,10,6,paint); line(canvas,15,15,21,21); break;
+                case "updates": line(canvas,12,3,12,16); line(canvas,7,11,12,16); line(canvas,17,11,12,16); line(canvas,4,18,4,21); line(canvas,4,21,20,21); line(canvas,20,21,20,18); break;
                 default: canvas.drawCircle(12,12,9,paint); line(canvas,12,11,12,17); canvas.drawPoint(12,7,paint); break;
             }
             canvas.restore();

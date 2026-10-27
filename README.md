@@ -6,13 +6,13 @@ The app uses Android platform Views, direct hardware radio IPC, and one MapLibre
 
 ## Get the APK — GitHub builds only
 
-1. Open [Build BreakDash in GitHub Actions](https://github.com/Breakeridis/BreakDash/actions/workflows/android.yml).
-2. Select the latest successful run, or choose **Run workflow**.
-3. Download **BreakDash-debug-armeabi-v7a** for the head unit, or **BreakDash-debug-arm64-v8a** for a Pixel 7 Pro / other 64-bit ARM phone, and extract the APK.
-4. Copy it to the head unit and install it through Android's installer.
-5. Open BreakDash and allow precise location when you tap GPS. In Settings, choose **Choose default Home app** if you want it to replace the stock launcher.
+1. Open the [latest signed release](https://github.com/Breakeridis/BreakDash/releases/latest).
+2. Download the APK ending in **armeabi-v7a.apk** for the head unit, or **arm64-v8a.apk** for a Pixel 7 Pro / other 64-bit ARM phone.
+3. Install the APK through Android's installer. No ZIP extraction is needed for release downloads.
+4. Open **BreakDash** and allow precise location when you tap GPS. Choose **Settings → Device → Default launcher** if you want it to replace the stock launcher.
+5. Use the dashboard's **Updates** button for future signed updates.
 
-The first artifact is a development build with package ID `com.breakdash.launcher.debug`. Release builds use `com.breakdash.launcher`; the two can coexist. GitHub's default debug signing key is ephemeral, so installing a later development APK may require removing the previous development installation. Signed release builds support updates without losing preferences.
+Development APKs remain available under successful [GitHub Actions runs](https://github.com/Breakeridis/BreakDash/actions/workflows/android.yml), in the **BreakDash-debug-armeabi-v7a** and **BreakDash-debug-arm64-v8a** ZIP artifacts. They are labeled **BreakDash Dev**, with package ID `com.breakdash.launcher.debug`. Release builds use `com.breakdash.launcher`; the two can coexist and have separate preferences. GitHub's default debug signing key is ephemeral, so installing a later development APK may require removing the previous development installation. Signed release builds support updates without losing preferences. Older development builds were also labeled BreakDash; check for a `-dev` version in About if there are two identical icons.
 
 The two APKs are standalone installers, each containing only one native architecture. The 32-bit head-unit download does not include the phone's 64-bit libraries. Pixel 7 and Pixel 7 Pro require the `arm64-v8a` build because they cannot run 32-bit apps. The cockpit fills the actual landscape screen aspect ratio while uniformly scaling its controls and circular map; there are no fixed-aspect letterbox bars. The NWD radio and other vendor-only apps remain unavailable on a phone.
 
@@ -27,16 +27,17 @@ The two APKs are standalone installers, each containing only one native architec
 - **Route search:** after connecting online maps and obtaining a fresh fix, tap search for debounced address suggestions. Select a result for a route, destination pin, distance, and visual next-turn guidance. Stop cancels guidance. If you leave the route, the banner asks you to search again; there is no continuous rerouting or voice guidance.
 - **Quick tiles:** dashcam, phone projection, navigation, and music. Tap to launch; hold to choose an installed app. ZLink/AutoKit/TLink detection uses installed app labels.
 - **Dock:** All Apps opens a searchable grid; hold an app in that grid to pin it. The scrollable dock supports four favorites. Hold a pinned shortcut to replace or remove it.
-- **Settings:** CPU/RAM/PSS readings, Google package controls, local ADB, Aurora Store, connections, Home selection, and Android Settings. Hold Settings on the dashboard for the full inspector.
-- **About:** day/night theme, GitHub releases, changelogs, checked APK downloads, diagnostic preview, encrypted upload, and full system information.
+- **Settings:** four large tabs: **Appearance** (Day/Night), **Maps** (connect/disconnect and providers), **Apps** (Aurora Store and Google services), and **Device** (default launcher, Android settings, health and advanced tools). Local ADB and the full inspector are under **Device → Advanced tools**. Technical details open separately.
+- **Updates:** installed/latest versions, a clear status and reason when installation is unavailable, checked APK downloads, and **What's new**. The notification dot appears here. Development builds offer **Get signed release** in the browser instead of attempting an incompatible in-place update.
+- **About:** app version and three large tiles: **Report a problem**, **Device info**, and **Credits**. Reports have an optional note, then a preview with an explicit **Encrypt & send** action. The uploaded report is exactly the capture shown in that preview.
 
-The CPU/RAM sampler runs only while Settings is the visible top dialog and the activity is resumed. GPS subscriptions, clock ticks, map rendering, and radio subscriptions stop when a dialog covers the dashboard or another app takes over. Opening a diagnostic report performs a one-shot capture. Automatic update checks are limited to once per day while the cockpit is visible; they never download or install automatically.
+The CPU/RAM sampler runs only while **Settings → Device → Device health** is visible and the activity is resumed. GPS subscriptions, clock ticks, map rendering, and radio subscriptions stop when a dialog covers the dashboard or another app takes over. Opening a diagnostic report performs a one-shot capture. Automatic update checks are limited to once per day while the cockpit is visible; they never download or install automatically. Panels provide **Back** for one level and **Close** to return directly to the cockpit.
 
 ## Online maps
 
 GPS speed and heading work without online services. Map connections are **off by default**. The on-device Connect screen lists the providers and explains the location/search information involved before enabling requests.
 
-Defaults are OpenFreeMap map styles, Photon address search, and OSRM driving routes. Public search/routing services have usage limits and no availability guarantee. Address autocomplete waits 700 ms, requires three characters, suppresses stale results, and allows one request in flight. Provider URLs can be changed in **Settings → Connections**; changing a provider disconnects maps until you choose to reconnect.
+Defaults are OpenFreeMap map styles, Photon address search, and OSRM driving routes. Public search/routing services have usage limits and no availability guarantee. Address autocomplete waits 700 ms, requires three characters, suppresses stale results, and allows one request in flight. Provider URLs can be changed in **Settings → Maps → Map providers**; changing a provider disconnects maps until you choose to reconnect.
 
 Map credits and links remain available at the map's lower right. These are online maps, with a small SDK cache, rather than an offline navigation package.
 
@@ -59,7 +60,7 @@ Generate and back up your signing key in a trusted environment, such as a privat
 
 In **Actions → Build BreakDash → Run workflow**, enter a stable tag such as `v1.0.0` in the optional **release_version** field. Leaving it blank builds development APKs only. The workflow runs checks, builds and shrinks both ARM variants, verifies their signatures, creates their SHA-256 files, then creates the tag and publishes the release from the exact tested commit. An existing tag must point at that same commit. Pushing a stable version tag from a cloud terminal also triggers this release path. Signing secrets and the expected certificate fingerprint are mandatory; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).
 
-The updater reads `Breakeridis/BreakDash` by default. It selects an APK using Android's preferred supported ARM architecture, validates its package, increasing version code and signing certificate, checks GitHub's SHA-256 asset digest when supplied, and invokes the Android installer. The system's **Allow from this source** permission is required. Development builds disable release installation because they have a different package/signature.
+The updater reads `Breakeridis/BreakDash` by default; change it under **Updates → Update source**. It selects an APK using Android's preferred supported ARM architecture, validates its package, increasing version code and signing certificate, checks GitHub's SHA-256 asset digest when supplied, and invokes the Android installer. The system's **Allow from this source** permission is required. Development builds open a signed-release download in the browser because their package/signature differs. Once installed, open the release app for future in-place updates.
 
 ## Google controls and diagnostics
 

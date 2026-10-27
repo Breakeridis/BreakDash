@@ -26,7 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,7 +40,7 @@ final class Panels implements AutoCloseable {
     private final List<Panel> stack=new ArrayList<>();
     private boolean resumed;
     private Panel settingsPanel;
-    private TextView monitor,privileges,connectionStatus,auroraStatus;
+    private TextView monitor,privileges;
     private final List<TextView> googleStatus=new ArrayList<>();
     private boolean monitorPending;
     private final Runnable sample=this::sample;
@@ -51,11 +50,17 @@ final class Panels implements AutoCloseable {
         final LinearLayout body;
         final Tasks.Scope scope=main.tasks.scope();
         boolean busy;
+        Runnable revealed=()->{};
         Panel(String title,boolean scroll) {
+            this(title,scroll,false);
+        }
+        Panel(String title,boolean scroll,boolean fullScreen) {
             dialog=new Dialog(main); dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-            LinearLayout root=ui.column(); root.setPadding(ui.dp(24),ui.dp(16),ui.dp(24),ui.dp(20)); root.setBackground(ui.surface(ui.bg,ui.border,24));
-            LinearLayout header=ui.row(); TextView name=ui.text(title,26,ui.text); header.addView(name,new LinearLayout.LayoutParams(0,-2,1));
-            header.addView(ui.button("Close",dialog::dismiss),new LinearLayout.LayoutParams(ui.dp(90),ui.dp(64))); root.addView(header); ui.gap(root,12);
+            LinearLayout root=ui.column(); root.setPadding(ui.dp(16),ui.dp(12),ui.dp(16),ui.dp(12)); root.setBackground(ui.surface(ui.bg,ui.border,fullScreen ? 0 : 24));
+            LinearLayout header=ui.row();
+            if(!stack.isEmpty()) { Button back=ui.button("‹ Back",dialog::dismiss); back.setTextSize(18); header.addView(back,new LinearLayout.LayoutParams(ui.dp(100),ui.dp(72))); }
+            TextView name=ui.text(title,26,ui.text); name.setPadding(ui.dp(12),0,ui.dp(8),0); name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END); header.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+            header.addView(ui.button("Close",Panels.this::close),new LinearLayout.LayoutParams(ui.dp(90),ui.dp(72))); root.addView(header); ui.gap(root,12);
             body=ui.column();
             if(scroll) { ScrollView scroller=new ScrollView(main); scroller.setFillViewport(false); scroller.addView(body); root.addView(scroller,new LinearLayout.LayoutParams(-1,0,1)); }
             else root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
@@ -64,7 +69,8 @@ final class Panels implements AutoCloseable {
             Window window=dialog.getWindow();
             if(window!=null) {
                 window.setBackgroundDrawableResource(android.R.color.transparent);
-                window.setLayout(Math.min(main.getResources().getDisplayMetrics().widthPixels-ui.dp(48),ui.dp(1120)),main.getResources().getDisplayMetrics().heightPixels-ui.dp(48));
+                window.setLayout(fullScreen ? -1 : Math.min(main.getResources().getDisplayMetrics().widthPixels-ui.dp(48),ui.dp(1120)),fullScreen ? -1 : main.getResources().getDisplayMetrics().heightPixels-ui.dp(48));
+                window.getDecorView().setSystemUiVisibility(main.getWindow().getDecorView().getSystemUiVisibility());
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
                 window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); WindowManager.LayoutParams params=window.getAttributes(); params.dimAmount=.8f; window.setAttributes(params);
             }
@@ -78,6 +84,7 @@ final class Panels implements AutoCloseable {
     void closeTop() { if(!stack.isEmpty()) stack.get(stack.size()-1).dismiss(); }
     void visibilityChanged(boolean value) {
         resumed=value; main.tasks.main.removeCallbacks(sample);
+        if(!stack.isEmpty() && stack.get(stack.size()-1).top()) stack.get(stack.size()-1).revealed.run();
         if(settingsPanel!=null && settingsPanel.top() && !monitorPending) main.tasks.main.post(sample);
     }
     @Override public void close() { for(Panel panel:new ArrayList<>(stack)) panel.dismiss(); main.tasks.main.removeCallbacks(sample); }
@@ -89,7 +96,7 @@ final class Panels implements AutoCloseable {
         catch(Exception error) { main.toast("No browser is available"); }
     }
     private void explain(LinearLayout body,String value) { TextView text=ui.text(value,15,ui.muted); text.setPadding(0,ui.dp(6),0,ui.dp(12)); body.addView(text); }
-    private void fullButton(LinearLayout body,String label,Runnable action) { body.addView(ui.button(label,action),new LinearLayout.LayoutParams(-1,ui.dp(72))); ui.gap(body,8); }
+    private void fullButton(LinearLayout body,String label,Runnable action) { Button button=ui.button(label,action); button.setTextSize(18); body.addView(button,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(body,8); }
 
     void appPicker(String title,List<String> excluded,Consumer<AppCatalog.App> selected) {
         Panel panel=new Panel(title,false); EditText query=ui.input("Search installed apps"); panel.body.addView(query);
@@ -130,15 +137,18 @@ final class Panels implements AutoCloseable {
         fullButton(panel.body,"Replace app",()->{ panel.dismiss(); appPicker("Replace shortcut",main.prefs.favorites(),replacement->{ List<String> values=main.prefs.favorites(); int position=values.indexOf(component); if(position>=0) values.set(position,replacement.component); main.prefs.favorites(values); main.renderFavorites(); }); });
     }
     void onlineMaps() {
-        Panel panel=new Panel("Connect online maps",true);
-        explain(panel.body,"GPS speed and heading work without an internet map. Connecting downloads map tiles around your location; searches send the text and nearby coordinates to the geocoder; routing sends your start and destination to the route provider.");
-        explain(panel.body,"Map (day): " + main.prefs.get("map_day","https://tiles.openfreemap.org/styles/positron") + "\nMap (night): " + main.prefs.get("map_night","https://tiles.openfreemap.org/styles/dark") + "\nSearch: " + main.prefs.get("geocoder","https://photon.komoot.io/api/") + "\nRoutes: " + main.prefs.get("router","https://router.project-osrm.org"));
-        explain(panel.body,"Map styles can reference tile, font and image hosts. These services need internet and do not provide offline navigation. You can disconnect in Settings at any time.");
-        fullButton(panel.body,"Connect to these providers",()->{ main.prefs.data.edit().putBoolean("online_maps",true).apply(); main.portal.reloadOnlineChoice(); panel.dismiss(); });
+        Panel panel=new Panel("Connect online maps",true,true);
+        explain(panel.body,"Internet required. Maps load around your location. Search shares text and nearby coordinates; routes share your start and destination with the configured providers.");
+        fullButton(panel.body,"Connect maps",()->{ main.prefs.data.edit().putBoolean("online_maps",true).apply(); main.portal.reloadOnlineChoice(); panel.dismiss(); });
         fullButton(panel.body,"Keep GPS only",panel::dismiss);
+        fullButton(panel.body,"Provider details",()->{
+            Panel details=new Panel("Map providers",true,true);
+            explain(details.body,"Map (day): "+main.prefs.get("map_day","https://tiles.openfreemap.org/styles/positron")+"\nMap (night): "+main.prefs.get("map_night","https://tiles.openfreemap.org/styles/dark")+"\nSearch: "+main.prefs.get("geocoder","https://photon.komoot.io/api/")+"\nRoutes: "+main.prefs.get("router","https://router.project-osrm.org"));
+            explain(details.body,"Styles can reference additional tile, font and image hosts. These services do not provide offline navigation. Disconnect at any time in Settings → Maps.");
+        });
     }
     void attribution() {
-        Panel panel=new Panel("Map credits",true);
+        Panel panel=new Panel("Credits",true,true);
         explain(panel.body,"Map rendering: MapLibre Native\nMap tiles and styles: OpenFreeMap / OpenMapTiles\nMap data © OpenStreetMap contributors (ODbL)\nAddress search: Photon / Komoot\nDriving routes: OSRM");
         fullButton(panel.body,"OpenStreetMap copyright & license",()->external("https://www.openstreetmap.org/copyright"));
         fullButton(panel.body,"MapLibre attribution & feedback",()->external("https://maplibre.org/"));
@@ -183,51 +193,118 @@ final class Panels implements AutoCloseable {
     }
 
     void settings() {
-        Panel panel=new Panel("BreakDash settings",true); settingsPanel=panel; main.system.resetMonitor();
-        ui.heading(panel.body,"HEAD UNIT HEALTH"); monitor=ui.text("Sampling…",17,ui.text); panel.body.addView(monitor); explain(panel.body,"Readings refresh every 2 seconds while this screen is visible.");
-        fullButton(panel.body,"Open Android system settings",()->{ try { main.startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch(Exception error) { main.toast("System Settings unavailable"); } });
-        fullButton(panel.body,"Choose default Home app",()->{ try { main.startActivity(new Intent(Settings.ACTION_HOME_SETTINGS)); } catch(Exception error) { main.toast("Choose BreakDash when Android asks for a Home app"); } });
-        ui.heading(panel.body,"GOOGLE SERVICES & LOCAL ADB");
-        connectionStatus=ui.text("Checking local privileges…",15,ui.amber); panel.body.addView(connectionStatus);
-        privileges=ui.text("ADB has not been authorized by BreakDash yet",15,ui.muted); panel.body.addView(privileges); ui.gap(panel.body,10);
-        fullButton(panel.body,"Test / connect local ADB",()->{
-            if(panel.busy) return; panel.busy=true; privileges.setText("Connecting to 127.0.0.1:5555 · allow the Android RSA prompt if shown");
-            panel.scope.run(main.system::testAdb,result->{ panel.busy=false; privileges.setText(result); },error->{ panel.busy=false; privileges.setText("ADB: "+error.getMessage()); });
+        Panel panel=new Panel("Settings",false,true);
+        LinearLayout layout=ui.row(); layout.setGravity(Gravity.TOP); panel.body.addView(layout,new LinearLayout.LayoutParams(-1,-1));
+        ScrollView railScroll=new ScrollView(main); LinearLayout rail=ui.column(); railScroll.addView(rail);
+        int railWidth=main.getResources().getConfiguration().screenWidthDp<700 ? 152 : 208;
+        layout.addView(railScroll,new LinearLayout.LayoutParams(ui.dp(railWidth),-1));
+        ScrollView pageScroll=new ScrollView(main); pageScroll.setFillViewport(true); LinearLayout page=ui.column(); page.setPadding(ui.dp(20),0,0,0); pageScroll.addView(page);
+        layout.addView(pageScroll,new LinearLayout.LayoutParams(0,-1,1));
+        String[] tabs={"Appearance","Maps","Apps","Device"}; Button[] buttons=new Button[tabs.length]; final int[] selected={0};
+        Runnable render=()->{
+            page.removeAllViews(); pageScroll.scrollTo(0,0);
+            for(int i=0;i<buttons.length;i++) {
+                buttons[i].setTextColor(i==selected[0] ? ui.accent : ui.text); buttons[i].setSelected(i==selected[0]);
+                buttons[i].setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),ui.surface(ui.card,i==selected[0] ? ui.accent : ui.border,16),null));
+            }
+            page.addView(ui.text(tabs[selected[0]],28,ui.text)); ui.gap(page,20);
+            switch(selected[0]) {
+                case 0:
+                    explain(page,"Choose your screen theme");
+                    LinearLayout themes=ui.row();
+                    Button day=ui.button("☀  Day",()->setTheme(true)),night=ui.button("☾  Night",()->setTheme(false));
+                    day.setTextSize(22); night.setTextSize(22); (main.prefs.light() ? day : night).setTextColor(ui.accent);
+                    ui.weighted(themes,day,100); ui.weighted(themes,night,100); page.addView(themes); break;
+                case 1:
+                    boolean connected=main.prefs.data.getBoolean("online_maps",false);
+                    explain(page,connected ? "Online maps connected" : "GPS only · maps disconnected");
+                    fullButton(page,connected ? "Disconnect maps" : "Connect maps",()->{
+                        if(main.prefs.data.getBoolean("online_maps",false)) {
+                            main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); panel.revealed.run();
+                        } else onlineMaps();
+                    });
+                    fullButton(page,"Map providers",()->connections("maps")); break;
+                case 2:
+                    fullButton(page,"Aurora Store",this::aurora);
+                    fullButton(page,"Google services",this::google); break;
+                default:
+                    fullButton(page,"Default launcher",()->openSettings(Settings.ACTION_HOME_SETTINGS));
+                    fullButton(page,"Android settings",()->openSettings(Settings.ACTION_SETTINGS));
+                    fullButton(page,"Device health",this::health);
+                    fullButton(page,"Advanced tools",this::advanced); break;
+            }
+        };
+        for(int i=0;i<tabs.length;i++) {
+            final int index=i; buttons[i]=ui.button(tabs[i],()->{ selected[0]=index; render.run(); }); buttons[i].setTextSize(20);
+            rail.addView(buttons[i],new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(rail,10);
+        }
+        panel.revealed=render; render.run();
+    }
+    private void setTheme(boolean light) { if(main.prefs.light()!=light) { main.prefs.light(light); main.recreateTheme(); } }
+    private void openSettings(String action) {
+        try { main.startActivity(new Intent(action)); } catch(Exception error) { main.toast("Android settings unavailable"); }
+    }
+    private void advanced() {
+        Panel panel=new Panel("Advanced tools",true,true);
+        fullButton(panel.body,"Local ADB",this::adb);
+        fullButton(panel.body,"System & radio inspector",()->diagnostics(false));
+    }
+    private void health() {
+        Panel panel=new Panel("Device health",true,true); settingsPanel=panel; main.system.resetMonitor();
+        monitor=ui.text("Sampling…",22,ui.text); panel.body.addView(monitor);
+        explain(panel.body,"Live while this page is open"); visibilityChanged(resumed);
+    }
+    private void adb() {
+        Panel panel=new Panel("Local ADB",true,true);
+        TextView state=ui.text("Not connected",20,ui.text); panel.body.addView(state);
+        fullButton(panel.body,"Connect",()->{
+            if(panel.busy) return; panel.busy=true; state.setText("Connecting · allow Android's authorization prompt");
+            panel.scope.run(main.system::testAdb,result->{ panel.busy=false; state.setText(result); },error->{ panel.busy=false; state.setText("ADB: "+error.getMessage()); });
         });
+        fullButton(panel.body,"Details",()->{
+            Panel details=new Panel("ADB details",true,true);
+            explain(details.body,"Requires TCP debugging on 127.0.0.1:5555 and Android RSA authorization. BreakDash cannot start the daemon itself. Google controls also try root and system APIs when available.");
+            details.scope.run(()->"Root binary: "+(main.system.rootBinaryPresent() ? "detected (not tested)" : "not found")+"\nTCP 5555: "+(main.system.portOpen() ? "open" : "closed"),value->explain(details.body,value),error->details.message(error.getMessage()));
+        });
+    }
+    private void google() {
+        Panel panel=new Panel("Google services",true,true);
+        privileges=ui.text("Choose a service to enable or disable",16,ui.muted); panel.body.addView(privileges);
         googleStatus.clear();
         String[] names={"Google Services Framework","Google Play Services","Google Play Store"};
         for(int i=0;i<SystemTools.GOOGLE.length;i++) {
             String pkg=SystemTools.GOOGLE[i]; LinearLayout packageCard=ui.column(); ui.heading(packageCard,names[i].toUpperCase(Locale.ROOT));
             TextView status=ui.text("",14,ui.muted); googleStatus.add(status); packageCard.addView(status);
-            LinearLayout controls=ui.row(); ui.weighted(controls,ui.button("Enable",()->changeGoogle(panel,new String[]{pkg},true)),64); ui.weighted(controls,ui.button("Disable",()->changeGoogle(panel,new String[]{pkg},false)),64);
-            ui.weighted(controls,ui.button("Copy command",()->copy(SystemTools.command(pkg,!"Enabled".equals(main.system.packageStatus(pkg))))),64); packageCard.addView(controls); panel.body.addView(packageCard);
+            LinearLayout controls=ui.row(); ui.weighted(controls,ui.button("Enable",()->changeGoogle(panel,new String[]{pkg},true)),80); ui.weighted(controls,ui.button("Disable",()->changeGoogle(panel,new String[]{pkg},false)),80);
+            ui.weighted(controls,ui.button("Details",()->{
+                Panel details=new Panel("Service details",true,true); explain(details.body,pkg);
+                fullButton(details.body,"Copy enable command",()->copy(SystemTools.command(pkg,true)));
+                fullButton(details.body,"Copy disable command",()->copy(SystemTools.command(pkg,false)));
+            }),80); packageCard.addView(controls); panel.body.addView(packageCard);
         }
-        LinearLayout all=ui.row(); ui.weighted(all,ui.button("Enable all",()->changeGoogle(panel,SystemTools.GOOGLE,true)),72); ui.weighted(all,ui.button("Disable all",()->changeGoogle(panel,SystemTools.GOOGLE,false)),72); panel.body.addView(all);
-        explain(panel.body,"Local ADB needs TCP debugging on port 5555 and Android RSA authorization. BreakDash cannot turn the daemon on by itself. Root and system APIs are fallbacks when available.");
-        ui.heading(panel.body,"AURORA STORE"); auroraStatus=ui.text(main.system.auroraStatus(),16,ui.text); panel.body.addView(auroraStatus);
+        LinearLayout all=ui.row(); ui.weighted(all,ui.button("Enable all",()->changeGoogle(panel,SystemTools.GOOGLE,true)),80); ui.weighted(all,ui.button("Disable all",()->changeGoogle(panel,SystemTools.GOOGLE,false)),80); panel.body.addView(all);
+        fullButton(panel.body,"Local ADB",this::adb); panel.revealed=this::refreshStatuses; refreshStatuses();
+    }
+    private void aurora() {
+        Panel panel=new Panel("Aurora Store",true,true); TextView status=ui.text(main.system.auroraStatus(),20,ui.text); panel.body.addView(status); ui.gap(panel.body,20);
         fullButton(panel.body,"Open Aurora Store",()->main.launchPackage("com.aurora.store"));
-        fullButton(panel.body,"Download & install Aurora Store",()->download(panel,null,true));
-        explain(panel.body,"Downloads use F-Droid with official Aurora GitLab as fallback. Android asks before installation. F-Droid and upstream builds may use different signing certificates.");
-        ui.heading(panel.body,"MAP & CONNECTIONS");
-        fullButton(panel.body,main.prefs.data.getBoolean("online_maps",false) ? "Disconnect online maps" : "Connect online maps",()->{
-            if(main.prefs.data.getBoolean("online_maps",false)) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); panel.dismiss(); }
-            else onlineMaps();
+        fullButton(panel.body,"Download & install",()->download(panel,null,true));
+        fullButton(panel.body,"Details",()->{
+            Panel details=new Panel("Aurora downloads",true,true);
+            explain(details.body,"Downloads use F-Droid, with official Aurora GitLab as fallback. Android asks before installation. These sources may use different signing certificates.");
         });
-        fullButton(panel.body,"Connections & provider settings",this::connections);
-        fullButton(panel.body,"System & radio diagnostics",()->diagnostics(false));
-        visibilityChanged(resumed);
+        panel.revealed=()->status.setText(main.system.auroraStatus());
     }
     private void sample() {
         Panel panel=settingsPanel; if(panel==null || !panel.top() || monitorPending) return;
         monitorPending=true;
-        panel.scope.run(()->new String[]{main.system.monitor(),"Root binary: " + (main.system.rootBinaryPresent() ? "detected (not tested)" : "not found") + " · TCP 5555: " + (main.system.portOpen() ? "open" : "closed")},value->{
+        panel.scope.run(main.system::monitor,value->{
             monitorPending=false;
-            if(panel.top()) { monitor.setText(value[0]); connectionStatus.setText(value[1]); refreshStatuses(); main.tasks.main.postDelayed(sample,2000); }
+            if(panel.top()) { monitor.setText(value); main.tasks.main.postDelayed(sample,2000); }
         },error->{ monitorPending=false; if(panel.top()) { monitor.setText(error.getMessage()); main.tasks.main.postDelayed(sample,2000); } });
     }
     private void refreshStatuses() {
-        for(int i=0;i<googleStatus.size();i++) googleStatus.get(i).setText(SystemTools.GOOGLE[i]+" · "+main.system.packageStatus(SystemTools.GOOGLE[i]));
-        if(auroraStatus!=null) auroraStatus.setText(main.system.auroraStatus());
+        for(int i=0;i<googleStatus.size();i++) googleStatus.get(i).setText(main.system.packageStatus(SystemTools.GOOGLE[i]));
     }
     private void changeGoogle(Panel panel,String[] packages,boolean enable) {
         if(panel.busy) { panel.message("A system action is already in progress"); return; }
@@ -240,36 +317,82 @@ final class Panels implements AutoCloseable {
     }
 
     void about() {
-        Panel panel=new Panel("About BreakDash",true);
+        Panel panel=new Panel("About",true,true);
         TextView name=ui.text("BreakDash",38,ui.text); name.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); panel.body.addView(name);
-        explain(panel.body,"Version "+BuildConfig.VERSION_NAME+" · Android "+android.os.Build.VERSION.SDK_INT+" · "+(android.os.Process.is64Bit() ? "64-bit ARM" : "32-bit ARM")+"\nBuilt for a lighter drive.");
-        fullButton(panel.body,main.prefs.light() ? "Switch to obsidian night theme" : "Switch to daylight theme",()->{ main.prefs.light(!main.prefs.light()); main.recreateTheme(); });
-        ui.heading(panel.body,"SOFTWARE UPDATES");
-        TextView update=ui.text(main.release==null ? "Check the latest GitHub release" : main.release.tag+"\n"+main.release.notes,16,ui.text); panel.body.addView(update);
-        Button install=ui.button("Download & install update",()->download(panel,main.release,false)); install.setEnabled(main.release!=null && main.release.newer && !main.release.url.isEmpty() && !BuildConfig.DEBUG); panel.body.addView(install);
-        fullButton(panel.body,"Check for updates",()->{
-            update.setText("Checking GitHub…");
+        explain(panel.body,"Version "+BuildConfig.VERSION_NAME+" · "+(BuildConfig.DEBUG ? "Development build" : "Release")+"\nBuilt for a lighter drive.");
+        LinearLayout actions=ui.row();
+        ui.weighted(actions,ui.actionTile("Report a problem","info",20,this::report),144);
+        ui.weighted(actions,ui.actionTile("Device info","settings",20,this::deviceInfo),144);
+        ui.weighted(actions,ui.actionTile("Credits","info",20,this::attribution),144); panel.body.addView(actions);
+    }
+    private void deviceInfo() {
+        Panel panel=new Panel("Device info",true,true);
+        explain(panel.body,android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL+"\nAndroid API "+android.os.Build.VERSION.SDK_INT+" · "+(android.os.Process.is64Bit() ? "64-bit ARM" : "32-bit ARM"));
+        fullButton(panel.body,"Full system & radio report",()->diagnostics(false));
+    }
+    void updates() {
+        Panel panel=new Panel("Updates",true,true);
+        explain(panel.body,"Installed: "+BuildConfig.VERSION_NAME+(BuildConfig.DEBUG ? " · Development build" : ""));
+        TextView available=ui.text("",18,ui.muted); panel.body.addView(available); ui.gap(panel.body,16);
+        TextView status=ui.text("",26,ui.text); panel.body.addView(status);
+        TextView reason=ui.text("",17,ui.muted); reason.setPadding(0,ui.dp(8),0,ui.dp(20)); panel.body.addView(reason);
+        Button install=ui.button(BuildConfig.DEBUG ? "Get signed release" : "Download & install",()->{
+            if(BuildConfig.DEBUG) { if(main.release!=null && !main.release.url.isEmpty()) external(main.release.url); }
+            else download(panel,main.release,false);
+        }); install.setTextSize(20); panel.body.addView(install,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(panel.body,12);
+        LinearLayout secondary=ui.row(); Button check=ui.button("Check again",()->{}),notes=ui.button("What's new",()->{
+            Downloads.Release release=main.release; if(release==null) return;
+            Panel details=new Panel("What's new · "+release.tag,true,true); explain(details.body,release.notes.isEmpty() ? "No release notes" : release.notes);
+        }); ui.weighted(secondary,check,80); ui.weighted(secondary,notes,80); panel.body.addView(secondary);
+        fullButton(panel.body,"Update source",()->connections("updates"));
+        Runnable render=()->{
+            Downloads.Release release=main.release; available.setText(release==null ? "" : "Latest release: "+release.tag);
+            notes.setEnabled(release!=null); install.setEnabled(release!=null && !release.url.isEmpty() && (BuildConfig.DEBUG || release.newer));
+            if(BuildConfig.DEBUG) {
+                status.setText("Development build"); reason.setText(release==null ? "Check for a signed release to use regular updates." : release.url.isEmpty() ? "No APK is available for this device." : "Installs as BreakDash alongside BreakDash Dev. Open BreakDash for future updates.");
+            } else if(release==null) { status.setText("Check for updates"); reason.setText("Find the latest release on GitHub."); }
+            else if(!release.newer) { status.setText("Up to date"); reason.setText("You're using the latest version available for you."); }
+            else if(release.url.isEmpty()) { status.setText("Update unavailable"); reason.setText("No APK is available for this device."); }
+            else { status.setText("Update available"); reason.setText("Ready to download "+release.tag); }
+        };
+        check.setOnClickListener(v->{
+            if(panel.busy) return; panel.busy=true; check.setEnabled(false); install.setEnabled(false); status.setText("Checking…"); reason.setText("");
             panel.scope.run(()->Downloads.latest(main.prefs.get("repository",BuildConfig.GITHUB_REPOSITORY)),value->{
-                main.release=value; main.updateBadge(); main.prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply();
-                update.setText((value.newer ? "New release: " : "Latest release: ")+value.tag+"\n"+value.notes+(BuildConfig.DEBUG ? "\nInstall a signed release APK to use in-app updates." : ""));
-                install.setEnabled(value.newer && !value.url.isEmpty() && !BuildConfig.DEBUG);
-            },error->update.setText(error.getMessage()));
+                panel.busy=false; check.setEnabled(true); main.release=value; main.updateBadge(); main.prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply(); render.run();
+            },error->{ panel.busy=false; check.setEnabled(true); render.run(); status.setText("Couldn't check for updates"); reason.setText(error.getMessage()); });
         });
-        fullButton(panel.body,"Connections & repository",this::connections);
-        ui.heading(panel.body,"DIAGNOSTICS & FEEDBACK");
-        explain(panel.body,"Reports include firmware, MCU settings, memory and tuner state. Preview the cloud report before sending. Common device identifiers are redacted; uploads are encrypted to your configured diagnostics service.");
+        panel.revealed=()->{ if(!panel.busy) render.run(); }; render.run(); if(main.release==null) check.performClick();
+    }
+    private void report() {
+        Panel panel=new Panel("Report a problem",true,true);
+        explain(panel.body,"Add a note, then review your report before sending.");
         EditText note=ui.input("Optional note about a problem or request"); note.setSingleLine(false); note.setMinLines(2); note.setMaxLines(5); note.setFilters(new InputFilter[]{new InputFilter.LengthFilter(4000)}); panel.body.addView(note);
-        fullButton(panel.body,"Preview cloud report",()->diagnostics(true));
-        TextView uploadState=ui.text("",15,ui.muted); panel.body.addView(uploadState);
-        Button upload=ui.button("Encrypt & upload report",()->{}); upload.setOnClickListener(v->{
-            upload.setEnabled(false); uploadState.setText("Collecting and encrypting…"); String radio=main.radio.diagnostics(),message=note.getText().toString();
-            panel.scope.run(()->Diagnostics.upload(main.prefs,Diagnostics.collect(main,radio,true),message),value->{ uploadState.setText(value); upload.setEnabled(true); },error->{ uploadState.setText(error.getMessage()); upload.setEnabled(true); });
-        }); panel.body.addView(upload,new LinearLayout.LayoutParams(-1,ui.dp(72)));
-        fullButton(panel.body,"Full system info",()->diagnostics(false));
+        fullButton(panel.body,"Preview report",()->reportPreview(note.getText().toString()));
+        fullButton(panel.body,"Report setup",()->connections("reports"));
+    }
+    private void reportPreview(String note) {
+        Panel panel=new Panel("Review report",false,true);
+        explain(panel.body,"Firmware, memory and radio details. Common identifiers are redacted; check for personal data before sending. Uploads are encrypted to your configured server.");
+        TextView state=ui.text("Collecting…",17,ui.muted); panel.body.addView(state);
+        TextView terminal=ui.text("",13,ui.text); terminal.setTypeface(Typeface.MONOSPACE); terminal.setTextIsSelectable(true);
+        ScrollView scroll=new ScrollView(main); scroll.addView(terminal); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        Button send=ui.button("Encrypt & send",()->{}); send.setEnabled(false); panel.body.addView(send,new LinearLayout.LayoutParams(-1,ui.dp(80)));
+        final String[] report={null}; final boolean[] sent={false};
+        Runnable ready=()->{
+            boolean configured=!main.prefs.get("diagnostics_url",BuildConfig.DIAGNOSTICS_URL).isEmpty() && !main.prefs.get("diagnostics_key",BuildConfig.DIAGNOSTICS_PUBLIC_KEY).isEmpty();
+            send.setEnabled(report[0]!=null && configured && !panel.busy && !sent[0]);
+            if(!panel.busy && !sent[0] && report[0]!=null) state.setText(configured ? "Ready to send" : "Configure a server in Report setup before sending");
+        };
+        send.setOnClickListener(v->{
+            if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; send.setEnabled(false); state.setText("Encrypting & sending…");
+            panel.scope.run(()->Diagnostics.upload(main.prefs,report[0],note),value->{ panel.busy=false; sent[0]=true; state.setText(value); },error->{ panel.busy=false; ready.run(); state.setText(error.getMessage()); });
+        });
+        panel.revealed=ready;
+        String radio=main.radio.diagnostics(); panel.scope.run(()->Diagnostics.collect(main,radio,true),value->{ report[0]=value; terminal.setText("Note: "+note+"\n\n"+value); ready.run(); },error->state.setText(error.getMessage()));
     }
     private void download(Panel parent,Downloads.Release release,boolean aurora) {
         if(!aurora && (release==null || release.url.isEmpty() || !release.newer || BuildConfig.DEBUG)) { parent.message("No compatible release update is available"); return; }
-        Panel panel=new Panel(aurora ? "Install Aurora Store" : "Update BreakDash",true);
+        Panel panel=new Panel(aurora ? "Install Aurora Store" : "Update BreakDash",true,true);
         TextView state=ui.text("Preparing download…",18,ui.text); panel.body.addView(state);
         ProgressBar progress=new ProgressBar(main,null,android.R.attr.progressBarStyleHorizontal); progress.setIndeterminate(true); progress.setMax(100); panel.body.addView(progress,new LinearLayout.LayoutParams(-1,ui.dp(24)));
         Button install=ui.button("Install APK",()->{}); install.setEnabled(false); panel.body.addView(install);
@@ -284,21 +407,21 @@ final class Panels implements AutoCloseable {
         },error->{ state.setText(error.getMessage()); progress.setIndeterminate(false); });
     }
     void diagnostics(boolean cloud) {
-        Panel panel=new Panel(cloud ? "Cloud report preview" : "System & radio inspector",false);
+        Panel panel=new Panel(cloud ? "Cloud report preview" : "System & radio inspector",false,true);
         TextView terminal=ui.text("Collecting…",13,ui.accent); terminal.setTypeface(Typeface.MONOSPACE); terminal.setTextIsSelectable(true);
         ScrollView scroll=new ScrollView(main); scroll.addView(terminal); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         Button copy=ui.button("Copy report",()->copy(terminal.getText().toString())); copy.setEnabled(false); panel.body.addView(copy);
         String radio=main.radio.diagnostics();
         panel.scope.run(()->Diagnostics.collect(main,radio,cloud),report->{ terminal.setText(report); copy.setEnabled(true); },error->terminal.setText(error.getMessage()));
     }
-    private void connections() {
-        Panel panel=new Panel("Connections",true);
-        explain(panel.body,"Use your GitHub owner/repository for releases. Cloud reporting also needs your deployed diagnostics endpoint and its RSA public key. Private keys and GitHub tokens belong on the backend.");
+    private void connections(String section) {
+        Panel panel=new Panel(section.equals("maps") ? "Map providers" : section.equals("updates") ? "Update source" : "Report setup",true,true);
+        if(section.equals("reports")) explain(panel.body,"Your HTTPS receiver and RSA public key. Keep private keys on your server.");
         Map<String,EditText> fields=new LinkedHashMap<>();
-        String[][] definitions={
-                {"repository","GitHub owner/repository",BuildConfig.GITHUB_REPOSITORY},
-                {"diagnostics_url","Diagnostics HTTPS endpoint",BuildConfig.DIAGNOSTICS_URL},
-                {"diagnostics_key","Diagnostics RSA public key (PEM)",BuildConfig.DIAGNOSTICS_PUBLIC_KEY},
+        String[][] definitions=section.equals("updates") ? new String[][]{
+                {"repository","GitHub owner/repository",BuildConfig.GITHUB_REPOSITORY}} : section.equals("reports") ? new String[][]{
+                {"diagnostics_url","HTTPS endpoint",BuildConfig.DIAGNOSTICS_URL},
+                {"diagnostics_key","RSA public key (PEM)",BuildConfig.DIAGNOSTICS_PUBLIC_KEY}} : new String[][]{
                 {"map_day","Day map style URL","https://tiles.openfreemap.org/styles/positron"},
                 {"map_night","Night map style URL","https://tiles.openfreemap.org/styles/dark"},
                 {"geocoder","Photon search endpoint","https://photon.komoot.io/api/"},
@@ -308,9 +431,9 @@ final class Panels implements AutoCloseable {
             if(definition[0].equals("diagnostics_key")) { field.setSingleLine(false); field.setMinLines(3); field.setMaxLines(6); }
             panel.body.addView(field); fields.put(definition[0],field);
         }
-        fullButton(panel.body,"Save connections",()->{
+        fullButton(panel.body,"Save",()->{
             try {
-                String repository=fields.get("repository").getText().toString().trim();
+                String repository=fields.containsKey("repository") ? fields.get("repository").getText().toString().trim() : "";
                 if(!repository.isEmpty() && !repository.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) throw new IllegalArgumentException("Use owner/repository for GitHub");
                 boolean mapsChanged=false;
                 for(String[] definition:definitions) {
@@ -321,7 +444,7 @@ final class Panels implements AutoCloseable {
                     if((key.startsWith("map_") || key.equals("geocoder") || key.equals("router")) && !value.equals(main.prefs.get(key,definition[2]))) mapsChanged=true;
                 }
                 for(String[] definition:definitions) main.prefs.put(definition[0],fields.get(definition[0]).getText().toString().trim());
-                main.prefs.data.edit().putLong("update_checked",0).apply(); main.release=null; main.updateBadge();
+                if(section.equals("updates")) { main.prefs.data.edit().putLong("update_checked",0).apply(); main.release=null; main.updateBadge(); }
                 if(mapsChanged) { main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); }
                 panel.message("Connections saved" + (mapsChanged ? " · reconnect maps to use the new providers" : "")); panel.dismiss();
             } catch(Exception error) { panel.message(error.getMessage()); }

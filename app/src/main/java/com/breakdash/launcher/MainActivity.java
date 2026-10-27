@@ -37,7 +37,7 @@ public final class MainActivity extends Activity {
     Downloads.Release release;
     private Tasks.Scope life,visible,pinnedRouteScope;
     private boolean resumed,dashboardActive,updateAttempted,pinRouting;
-    private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,about;
+    private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,updates;
     private Button radioPower,recenter,navigate,cancelNavigation;
     private final Button[] presets=new Button[6];
     private LinearLayout favorites;
@@ -163,8 +163,9 @@ public final class MainActivity extends Activity {
             cards.addView(cardRow,new LinearLayout.LayoutParams(-1,0,1));
         }
         right.addView(cards,new LinearLayout.LayoutParams(-1,0,1)); ui.gap(right,14);
-        LinearLayout utility=ui.row(); about=ui.button("About",panels::about); ui.weighted(utility,about,80);
-        Button settings=ui.button("Settings",panels::settings); settings.setOnLongClickListener(v->{ panels.diagnostics(false); return true; }); settings.setContentDescription("Settings, hold for diagnostics"); ui.weighted(utility,settings,80); right.addView(utility);
+        LinearLayout utility=ui.row(); ui.weighted(utility,ui.actionTile("Settings","settings",panels::settings),80);
+        LinearLayout updateTile=ui.actionTile("Updates","updates",panels::updates); updates=(TextView)updateTile.getChildAt(1); ui.weighted(utility,updateTile,80);
+        ui.weighted(utility,ui.actionTile("About","info",panels::about),80); right.addView(utility);
         renderRadio(); renderFavorites(); renderLocation();
     }
     void defaults() {
@@ -319,7 +320,7 @@ public final class MainActivity extends Activity {
             release=value; prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply(); updateBadge();
         },error->{ /* A failed automatic check does not interrupt the cockpit. Manual check shows details. */ });
     }
-    void updateBadge() { if(about!=null) about.setText(release!=null && release.newer ? "About  ●" : "About"); }
+    void updateBadge() { if(updates!=null) updates.setText(release!=null && release.newer ? "Updates ●" : "Updates"); }
     void toast(String message) { if(message!=null && !isFinishing() && !isDestroyed()) Toast.makeText(this,message,Toast.LENGTH_LONG).show(); }
     void recreateTheme() { recreate(); }
     @Override protected void onStart() { super.onStart(); portal.mapView.onStart(); if(life!=null) life.run(catalog::load,result->{ apps=result; defaults(); renderFavorites(); },error->{}); }

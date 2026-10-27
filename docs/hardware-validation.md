@@ -6,8 +6,8 @@ All app builds and automated checks belong in GitHub Actions. The following chec
 
 1. Install the APK, open it in landscape, and confirm that controls use the full 1280 × 720 screen without an outer frame or column gutters. On a wider phone display, check that the cockpit reaches both screen edges without letterboxing and that the map is still circular. The reference head-unit map region should occupy a 720 × 720 square between readable side columns.
 2. Tap GPS, allow precise location, and check GPS lock outdoors. If location is disabled, use the Android Location screen. A fix expires after 15 seconds; speed must show a dash instead of a stale value.
-3. Open Settings. Record BreakDash PSS with maps disconnected, connected, and during a route. Check real memory pressure with the raw `/proc/meminfo` report; reported total RAM may be inflated.
-4. Open and close Settings repeatedly; CPU sampling must resume each time. Change to another app and return; subscriptions must resume without duplicates.
+3. Open Settings → Device → Device health. Record BreakDash PSS with maps disconnected, connected, and during a route. Check real memory pressure with the raw `/proc/meminfo` report; reported total RAM may be inflated.
+4. Open and close Device health repeatedly; CPU sampling must resume each time and stop on all other Settings pages. Change to another app and return; subscriptions must resume without duplicates.
 5. Select the day theme under direct sunlight and the night theme in darkness. Check app picker, scrolling favorites, long-press actions, and the default Home selection. Confirm all six radio presets remain legible in the narrower side column.
 
 ## NWD radio
@@ -32,7 +32,7 @@ Vendor services are outside this APK and have not been exercised here. Capture t
 3. Hold a map point and check that an amber pin appears at the touched coordinate, including after zooming/rotating and on the scaled phone layout. Tap **Navigate**, verify the route and destination pin, then stop. A pending point can be cleared or replaced; canceling/replacing it during calculation must not display the old route when its response arrives. Without a fresh GPS fix, the pending pin remains available and Navigate stays disabled until GPS locks.
 4. Search, choose a destination, check the full route framing and return to vehicle tracking, verify next-turn and remaining road distance, and cancel. The route overview should keep its destination marker above the floating navigation banner. Creating, clearing, starting, and stopping navigation must not change the circle's size or shift the touched point. Drag during the route overview; the map must remain in explore mode until Recenter. If off route, use a new search or pinned destination to recalculate.
 5. Revoke location permission or disable GPS; the dashboard must show the loss of a fresh fix. Disconnect internet; the app must remain usable for radio, apps, and GPS instrumentation.
-6. In Settings, Test/Connect ADB only after enabling the loopback daemon. Accept Android's RSA prompt. A closed port or denied authorization should display an error, not claim a successful package change.
+6. In Settings → Device → Advanced tools → Local ADB, tap Connect only after enabling the loopback daemon. Accept Android's RSA prompt. A closed port or denied authorization should display an error, not claim a successful package change.
 7. Enable and disable each Google package, then test bulk actions. Standard third-party apps normally lack system API permission; ADB/root must be available for package control.
 8. Download Aurora and verify Android's install permission handoff. A different existing Aurora signing certificate requires choosing a consistent distribution or manually replacing the old app.
 9. For release updates, install a signed release and publish a higher version using the same keystore. Test download, installer permission, and preservation of app preferences.

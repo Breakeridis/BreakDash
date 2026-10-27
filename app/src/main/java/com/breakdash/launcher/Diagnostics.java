@@ -57,7 +57,7 @@ final class Diagnostics {
     }
     static String upload(Prefs prefs,String report,String note) throws Exception {
         String endpoint=prefs.get("diagnostics_url",BuildConfig.DIAGNOSTICS_URL),pem=prefs.get("diagnostics_key",BuildConfig.DIAGNOSTICS_PUBLIC_KEY);
-        if(endpoint.isEmpty() || pem.isEmpty()) throw new IllegalStateException("Configure a diagnostics endpoint and public key in Connections");
+        if(endpoint.isEmpty() || pem.isEmpty()) throw new IllegalStateException("Configure your server and public key in Report setup");
         String encoded=pem.replace("-----BEGIN PUBLIC KEY-----","").replace("-----END PUBLIC KEY-----","").replaceAll("\\s","");
         PublicKey publicKey=KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decode(encoded,Base64.DEFAULT)));
         KeyGenerator generator=KeyGenerator.getInstance("AES"); generator.init(256); SecretKey key=generator.generateKey();
