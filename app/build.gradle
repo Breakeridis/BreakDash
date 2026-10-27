@@ -35,6 +35,7 @@ android {
     signingConfigs {
         release {
             if (System.getenv('BREAKDASH_KEYSTORE_PATH')) {
+                storeType setting('BREAKDASH_KEYSTORE_TYPE', 'PKCS12')
                 storeFile file(System.getenv('BREAKDASH_KEYSTORE_PATH'))
                 storePassword System.getenv('BREAKDASH_KEYSTORE_PASSWORD')
                 keyAlias System.getenv('BREAKDASH_KEY_ALIAS')

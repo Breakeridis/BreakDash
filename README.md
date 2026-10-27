@@ -46,14 +46,16 @@ In repository **Settings → Secrets and variables → Actions**, add:
 
 | Secret | Value |
 | --- | --- |
-| `BREAKDASH_KEYSTORE_BASE64` | Base64-encoded release JKS/PKCS12 keystore |
+| `BREAKDASH_KEYSTORE_BASE64` | Base64-encoded release PKCS12 keystore |
 | `BREAKDASH_KEYSTORE_PASSWORD` | Keystore password |
 | `BREAKDASH_KEY_ALIAS` | Signing key alias |
 | `BREAKDASH_KEY_PASSWORD` | Signing key password |
 
+Also set the repository Actions variable `BREAKDASH_SIGNER_SHA256` to the SHA-256 fingerprint of the release signing certificate. CI verifies both APKs against it before publishing. PKCS12 is the default keystore type; an existing JKS keystore additionally needs the Actions variable `BREAKDASH_KEYSTORE_TYPE=JKS`.
+
 Generate and back up your signing key in a trusted environment, such as a private GitHub Codespace cloud terminal; no local app compilation is needed. Keep this same key for every release. Do not commit it, paste it in issues, or include it in APKs.
 
-Create and push a stable tag such as `v1.0.0` using GitHub or a cloud terminal. The workflow runs checks, builds and shrinks both ARM variants, verifies their signatures, creates their SHA-256 files, and publishes them to GitHub Releases. Signing secrets are mandatory for the release job; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).
+In **Actions → Build BreakDash → Run workflow**, enter a stable tag such as `v1.0.0` in the optional **release_version** field. Leaving it blank builds development APKs only. The workflow runs checks, builds and shrinks both ARM variants, verifies their signatures, creates their SHA-256 files, then creates the tag and publishes the release from the exact tested commit. An existing tag must point at that same commit. Pushing a stable version tag from a cloud terminal also triggers this release path. Signing secrets and the expected certificate fingerprint are mandatory; an unsigned APK is never published as a release. Stable versions use `major × 1,000,000 + minor × 1,000 + patch` for Android version codes (each component 0–999).
 
 The updater reads `Breakeridis/BreakDash` by default. It selects an APK using Android's preferred supported ARM architecture, validates its package, increasing version code and signing certificate, checks GitHub's SHA-256 asset digest when supplied, and invokes the Android installer. The system's **Allow from this source** permission is required. Development builds disable release installation because they have a different package/signature.
 

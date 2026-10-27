@@ -4,13 +4,19 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Optional release tag, e.g. v1.0.0; leave blank for development APKs'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: breakdash-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  group: breakdash-${{ github.workflow }}-${{ inputs.release_version || github.ref }}
+  cancel-in-progress: ${{ inputs.release_version == '' && !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   BREAKDASH_REPOSITORY: ${{ github.repository }}
@@ -79,18 +85,21 @@ jobs:
 
   release:
     name: Signed release
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    if: (startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.release_version != '')
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: write
     env:
+      BREAKDASH_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_version || github.ref_name }}
       BREAKDASH_DIAGNOSTICS_URL: ${{ vars.BREAKDASH_DIAGNOSTICS_URL }}
       BREAKDASH_DIAGNOSTICS_PUBLIC_KEY: ${{ vars.BREAKDASH_DIAGNOSTICS_PUBLIC_KEY }}
       BREAKDASH_KEYSTORE_PASSWORD: ${{ secrets.BREAKDASH_KEYSTORE_PASSWORD }}
       BREAKDASH_KEY_ALIAS: ${{ secrets.BREAKDASH_KEY_ALIAS }}
       BREAKDASH_KEY_PASSWORD: ${{ secrets.BREAKDASH_KEY_PASSWORD }}
+      BREAKDASH_KEYSTORE_TYPE: ${{ vars.BREAKDASH_KEYSTORE_TYPE || 'PKCS12' }}
+      BREAKDASH_SIGNER_SHA256: ${{ vars.BREAKDASH_SIGNER_SHA256 }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-java@v6.1.0
@@ -112,7 +121,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+          if [[ ! "$BREAKDASH_RELEASE_TAG" =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             echo 'Release tags must look like v1.0.0'; exit 1
           fi
           if [[ -z "$KEYSTORE_BASE64" || -z "$BREAKDASH_KEYSTORE_PASSWORD" || -z "$BREAKDASH_KEY_ALIAS" || -z "$BREAKDASH_KEY_PASSWORD" ]]; then
@@ -120,8 +129,9 @@ jobs:
           fi
           umask 077
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/breakdash.jks"
+          keytool -list -keystore "$RUNNER_TEMP/breakdash.jks" -storetype "$BREAKDASH_KEYSTORE_TYPE" -alias "$BREAKDASH_KEY_ALIAS" -storepass:env BREAKDASH_KEYSTORE_PASSWORD
           echo "BREAKDASH_KEYSTORE_PATH=$RUNNER_TEMP/breakdash.jks" >> "$GITHUB_ENV"
-          echo "BREAKDASH_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "BREAKDASH_VERSION=${BREAKDASH_RELEASE_TAG#v}" >> "$GITHUB_ENV"
       - name: Build signed and optimized APK
         run: gradle --no-daemon --stacktrace :app:lintRelease :app:assembleRelease
       - name: Verify and checksum APK
@@ -129,9 +139,15 @@ jobs:
         run: |
           set -euo pipefail
           for abi in armeabi-v7a arm64-v8a; do
-            artifact="BreakDash-${GITHUB_REF_NAME}-${abi}.apk"
+            artifact="BreakDash-${BREAKDASH_RELEASE_TAG}-${abi}.apk"
             cp "app/build/outputs/apk/release/app-${abi}-release.apk" "$artifact"
-            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$artifact"
+            verification=$("$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$artifact")
+            printf '%s\n' "$verification"
+            actual=$(printf '%s\n' "$verification" | awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}')
+            expected=$(printf '%s' "$BREAKDASH_SIGNER_SHA256" | tr -d ':[:space:]' | tr 'A-F' 'a-f')
+            if [[ -z "$expected" || "$actual" != "$expected" ]]; then
+              echo "APK signer does not match the configured BREAKDASH_SIGNER_SHA256"; exit 1
+            fi
             sha256sum "$artifact" > "$artifact.sha256"
           done
       - uses: actions/upload-artifact@v7.0.2
@@ -145,7 +161,25 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" BreakDash-*.apk BreakDash-*.sha256 --verify-tag --title "BreakDash $GITHUB_REF_NAME" --generate-notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_args=("$BREAKDASH_RELEASE_TAG" BreakDash-*.apk BreakDash-*.sha256 --title "BreakDash $BREAKDASH_RELEASE_TAG")
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$BREAKDASH_RELEASE_TAG" > /dev/null 2>&1; then
+            tagged_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BREAKDASH_RELEASE_TAG" --jq .sha)
+            if [[ "$tagged_sha" != "$GITHUB_SHA" ]]; then
+              echo 'Existing release tag points at a different source commit.'; exit 1
+            fi
+            release_args+=(--verify-tag)
+          else
+            release_args+=(--target "$GITHUB_SHA")
+          fi
+          notes="docs/releases/${BREAKDASH_RELEASE_TAG}.md"
+          if [[ -f "$notes" ]]; then
+            gh release create "${release_args[@]}" --notes-file "$notes"
+          else
+            gh release create "${release_args[@]}" --generate-notes
+          fi
       - name: Remove runner signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/breakdash.jks"
