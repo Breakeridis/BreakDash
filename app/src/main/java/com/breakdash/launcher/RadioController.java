@@ -55,10 +55,11 @@ final class RadioController {
                 if (!DESCRIPTOR.equals(actual)) throw new IllegalStateException("Unexpected tuner: " + actual);
                 return actual;
             }, actual -> {
+                if(!started || !bound || binder!=service) return;
                 main.removeCallbacks(connectionTimeout); lastDescriptor=actual; lastConnected=System.currentTimeMillis(); state.connected = true; state.error = "";
                 DiagnosticHistory.event("radio command binding ready"); readSettings();
                 Runnable command=pendingCommand; pendingCommand=null; if(command!=null) command.run();
-            },error->disconnected("Tuner unavailable: "+error.getMessage()));
+            },error->{ if(started && bound && binder==service) disconnected("Tuner unavailable: "+error.getMessage()); });
         }
         @Override public void onServiceDisconnected(ComponentName name) { disconnected("Tuner service disconnected"); }
         @Override public void onBindingDied(ComponentName name) { disconnected("Tuner binding died; reopen dashboard to reconnect"); }
