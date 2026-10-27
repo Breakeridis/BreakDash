@@ -53,6 +53,8 @@ The centerpiece of the cockpit is a circular masked viewport that combines navig
 1. **Live Moving Road Map**:
    - Renders OpenStreetMap vector tiles centered dynamically on the vehicle's GPS position.
    - Auto-rotates according to true GPS bearing ("Heading-Up" orientation) so the road ahead is always pointing upward.
+   - While navigating, follows the car with a 45° tilted perspective, a closer road zoom, and a slightly lowered vehicle position to reveal more road ahead. A flat route overview appears briefly first. Smooth transitions connect GPS updates; no extra orientation sensor or background tracking service is used.
+   - Holds the last reliable GPS travel direction while stopped or moving slowly. Rejects poor bearing accuracy when reported. Direction is unknown until a reliable moving fix arrives; the vehicle dot becomes a directional arrow once established.
 2. **Rotational Compass & Cardinal Direction**:
    - Integrated floating compass ribbon indicating heading degrees (`0°–359°`).
    - Cardinal orientation indicator displaying one of the 8 dynamic headings (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`).

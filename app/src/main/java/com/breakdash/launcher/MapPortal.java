@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.Locale;
 import com.breakdash.launcher.core.MapTracking;
+import com.breakdash.launcher.core.VehicleHeading;
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
 import org.maplibre.android.camera.CameraUpdateFactory;
@@ -54,7 +55,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private boolean active, light, destroyed;
     private int background = Color.rgb(10,14,23);
     private Location lastFix;
-    private double bearing;
+    private final VehicleHeading vehicleHeading = new VehicleHeading();
     private final MapTracking tracking = new MapTracking();
     private Navigation.Place selection;
     private final Runnable finishPreview = () -> { if (active) renderFix(); };
@@ -112,6 +113,10 @@ final class MapPortal extends FrameLayout implements LocationListener {
             style.addLayer(pinLayer("breakdash-selection-pin","breakdash-selection"));
             style.addSource(new GeoJsonSource("breakdash-vehicle", empty()));
             style.addLayer(new CircleLayer("breakdash-vehicle-dot", "breakdash-vehicle").withProperties(PropertyFactory.circleColor("#42D6CB"),PropertyFactory.circleRadius(7f),PropertyFactory.circleStrokeColor("#FFFFFF"),PropertyFactory.circleStrokeWidth(2f)));
+            style.addImage("breakdash-arrow",vehicleImage());
+            style.addLayer(new SymbolLayer("breakdash-vehicle-arrow","breakdash-vehicle").withProperties(
+                    PropertyFactory.iconImage("breakdash-arrow"),PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true),
+                    PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT)));
             renderRoute(); renderSelection(); renderFix();
         });
     }
@@ -126,7 +131,16 @@ final class MapPortal extends FrameLayout implements LocationListener {
         paint.setColor(Color.parseColor("#F2B86B")); canvas.drawPath(pin,paint);
         paint.setColor(Color.parseColor("#0A0E17")); canvas.drawCircle(16,15,6,paint); return image;
     }
+    private Bitmap vehicleImage() {
+        Bitmap image=Bitmap.createBitmap(40,40,Bitmap.Config.ARGB_8888);
+        Canvas canvas=new Canvas(image); Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); Path arrow=new Path();
+        arrow.moveTo(20,3); arrow.lineTo(35,35); arrow.lineTo(20,28); arrow.lineTo(5,35); arrow.close();
+        paint.setColor(Color.parseColor("#42D6CB")); canvas.drawPath(arrow,paint);
+        paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setStrokeJoin(Paint.Join.ROUND); paint.setColor(Color.WHITE); canvas.drawPath(arrow,paint);
+        return image;
+    }
     void pin(Navigation.Place place) {
+        if(map!=null) { map.cancelAllVelocityAnimations(); map.cancelTransitions(); }
         selection=place; tracking.explore(); removeCallbacks(finishPreview); renderSelection(); changed.accept(fix());
     }
     Navigation.Place selection() { return selection; }
@@ -146,7 +160,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private FeatureCollection empty() { return FeatureCollection.fromFeatures(new Feature[0]); }
     void active(boolean value) {
         if (active == value) return; active = value;
-        if (!value) { removeCallbacks(finishPreview); locations.removeUpdates(this); mapView.onPause(); return; }
+        if (!value) { removeCallbacks(finishPreview); locations.removeUpdates(this); if(map!=null) map.cancelTransitions(); mapView.onPause(); return; }
         mapView.onResume();
         long previewLeft=tracking.previewRemaining(SystemClock.elapsedRealtime());
         if(previewLeft>0) postDelayed(finishPreview,previewLeft);
@@ -160,11 +174,12 @@ final class MapPortal extends FrameLayout implements LocationListener {
         } catch (RuntimeException error) { status.accept("GPS unavailable"); }
     }
     Location fix() { return lastFix != null && SystemClock.elapsedRealtimeNanos()-lastFix.getElapsedRealtimeNanos()<15_000_000_000L ? lastFix : null; }
-    double heading() { return bearing; }
+    double heading() { return vehicleHeading.degrees(); }
+    boolean hasHeading() { return vehicleHeading.known(); }
     @Override public void onLocationChanged(Location fix) {
         if (!active || !fix.hasAccuracy() || fix.getAccuracy()>100) return;
         lastFix = fix;
-        if (fix.hasBearing() && fix.hasSpeed() && fix.getSpeed()>1.5) bearing=fix.getBearing();
+        if (fix.hasBearing() && fix.hasSpeed()) vehicleHeading.update(fix.getBearing(),fix.getSpeed(),fix.hasBearingAccuracy() ? fix.getBearingAccuracyDegrees() : Double.NaN);
         renderFix(); changed.accept(fix);
     }
     private void renderFix() {
@@ -172,7 +187,16 @@ final class MapPortal extends FrameLayout implements LocationListener {
         Style style=map.getStyle(); if (style==null) return;
         GeoJsonSource source=style.getSourceAs("breakdash-vehicle");
         if (source!=null) source.setGeoJson(Point.fromLngLat(lastFix.getLongitude(),lastFix.getLatitude()));
-        if (tracking.shouldFollow(SystemClock.elapsedRealtime())) map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude())).zoom(15.5).bearing(bearing).build()));
+        SymbolLayer arrow=style.getLayerAs("breakdash-vehicle-arrow");
+        if(arrow!=null) arrow.setProperties(PropertyFactory.iconRotate((float)heading()),PropertyFactory.iconOpacity(hasHeading() ? 1f : 0f));
+        if (active && fix()!=null && tracking.shouldFollow(SystemClock.elapsedRealtime())) {
+            boolean navigating=route!=null;
+            CameraPosition camera=new CameraPosition.Builder().target(new LatLng(lastFix.getLatitude(),lastFix.getLongitude()))
+                    .zoom(navigating ? 16.5 : 15.5).bearing(heading()).tilt(navigating ? 45 : 0)
+                    .padding(0,navigating ? getHeight()*.18 : 0,0,0).build();
+            // Interpolate only between GPS updates; no extra sensor or animation loop.
+            map.easeCamera(CameraUpdateFactory.newCameraPosition(camera),700,false);
+        }
     }
     void route(Navigation.Route value) {
         route=value; selection=null; removeCallbacks(finishPreview); renderSelection(); renderRoute();
@@ -180,10 +204,13 @@ final class MapPortal extends FrameLayout implements LocationListener {
             List<LatLng> points=new ArrayList<>();
             for (Point point:value.geometry) points.add(new LatLng(point.latitude(),point.longitude()));
             map.cancelAllVelocityAnimations();
+            map.cancelTransitions();
             tracking.previewRoute(SystemClock.elapsedRealtime());
             int roundPadding=Math.round(Math.min(getWidth(),getHeight())*.20f);
             int bottomPadding=Math.max(roundPadding,Math.round(176*density));
-            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),roundPadding,roundPadding,roundPadding,bottomPadding));
+            // Follow-camera padding persists in MapLibre, so clear it before fitting a flat overview.
+            map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder(map.getCameraPosition()).padding(0,0,0,0).tilt(0).bearing(0).build()));
+            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),0,0,roundPadding,roundPadding,roundPadding,bottomPadding));
             if(active) postDelayed(finishPreview,MapTracking.ROUTE_PREVIEW_MS);
         } else { tracking.recenter(); renderFix(); }
         changed.accept(fix());

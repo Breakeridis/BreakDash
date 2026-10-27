@@ -4,10 +4,10 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAssetsTest {
-    @Test public void pixelNeverSelectsAnIncompatible32BitApk() {
-        String[] pixel = {"arm64-v8a"};
-        assertEquals(0, ReleaseAssets.priority("BreakDash-v1.2.0-arm64-v8a.apk", pixel));
-        assertEquals(Integer.MAX_VALUE, ReleaseAssets.priority("BreakDash-v1.2.0-armeabi-v7a.apk", pixel));
+    @Test public void arm64OnlyDeviceNeverSelectsAnIncompatible32BitApk() {
+        String[] supported = {"arm64-v8a"};
+        assertEquals(0, ReleaseAssets.priority("BreakDash-v1.2.0-arm64-v8a.apk", supported));
+        assertEquals(Integer.MAX_VALUE, ReleaseAssets.priority("BreakDash-v1.2.0-armeabi-v7a.apk", supported));
     }
 
     @Test public void headUnitStillSelectsIts32BitApk() {

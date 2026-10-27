@@ -173,7 +173,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release_args=("$BREAKDASH_RELEASE_TAG" BreakDash-*.apk BreakDash-*.sha256 --title "BreakDash $BREAKDASH_RELEASE_TAG")
+          release_args=("$BREAKDASH_RELEASE_TAG" --title "BreakDash $BREAKDASH_RELEASE_TAG")
+          for abi in armeabi-v7a arm64-v8a; do
+            artifact="BreakDash-${BREAKDASH_RELEASE_TAG}-${abi}.apk"
+            label='32-bit ARM APK (armeabi-v7a)'
+            if [[ "$abi" == 'arm64-v8a' ]]; then label='64-bit ARM APK (arm64-v8a)'; fi
+            release_args+=("$artifact#$label" "$artifact.sha256")
+          done
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$BREAKDASH_RELEASE_TAG" > /dev/null 2>&1; then
             tagged_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BREAKDASH_RELEASE_TAG" --jq .sha)
             if [[ "$tagged_sha" != "$GITHUB_SHA" ]]; then

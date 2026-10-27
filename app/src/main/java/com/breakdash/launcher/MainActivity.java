@@ -239,7 +239,7 @@ public final class MainActivity extends Activity {
         unit.setText(prefs.mph() ? "MPH" : "KM/H");
         String[] directions={"N","NE","E","SE","S","SW","W","NW"}; int bearing=(int)Math.round(portal.heading())%360;
         String mode=portal.following() ? "FOLLOW" : "EXPLORE";
-        heading.setText(valid ? String.format(Locale.US,"%03d° %s / %s",bearing,directions[(int)Math.round(bearing/45.0)%8],mode) : "—° / "+mode);
+        heading.setText(valid && portal.hasHeading() ? String.format(Locale.US,"%03d° %s / %s",bearing,directions[(int)Math.round(bearing/45.0)%8],mode) : "—° / "+mode);
         recenter.setTextColor(portal.following() ? ui.muted : ui.accent);
         String gpsStatus=valid ? "GPS lock, accuracy ±"+(int)fix.getAccuracy()+" m" : gpsMessage;
         gps.setText(valid ? "● ±"+(int)fix.getAccuracy()+" m" : "● GPS"); gps.setTextColor(valid ? ui.accent : ui.amber); gps.setContentDescription(gpsStatus+". Tap for location settings."); gps.setTooltipText(gpsStatus);
