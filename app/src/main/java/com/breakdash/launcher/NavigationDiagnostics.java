@@ -5,9 +5,9 @@ import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Locale;
 
@@ -22,8 +22,8 @@ final class NavigationDiagnostics {
     }
     static String defaultHome(Context context) {
         try {
-            ArrayList<ResolveInfo> homes=new ArrayList<>(); ComponentName preferred=context.getPackageManager().getHomeActivities(homes);
-            return preferred==null ? "No preferred Home returned by Android" : preferred.flattenToShortString();
+            ResolveInfo resolved=context.getPackageManager().resolveActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),PackageManager.MATCH_DEFAULT_ONLY);
+            return resolved==null || resolved.activityInfo==null ? "No preferred Home returned by Android" : new ComponentName(resolved.activityInfo.packageName,resolved.activityInfo.name).flattenToShortString();
         } catch(Exception error) { return "Unavailable"; }
     }
     synchronized String collect(Activity activity) {
