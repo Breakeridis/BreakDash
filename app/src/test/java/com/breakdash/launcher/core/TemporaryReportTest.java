@@ -54,6 +54,6 @@ public class TemporaryReportTest {
         TemporaryReport.Sealed sealed=TemporaryReport.seal(SAMPLE.getBytes(StandardCharsets.UTF_8));
         Path directory=Path.of(folder); Files.createDirectories(directory);
         Files.write(directory.resolve("synthetic.bdr"),sealed.encrypted);
-        Files.writeString(directory.resolve("synthetic-link.txt"),sealed.shareLink(DOWNLOAD),StandardCharsets.UTF_8);
+        Files.write(directory.resolve("synthetic-link.txt"),sealed.shareLink(DOWNLOAD).getBytes(StandardCharsets.UTF_8));
     }
 }
