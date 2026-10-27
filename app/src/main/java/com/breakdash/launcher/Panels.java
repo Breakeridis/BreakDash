@@ -368,27 +368,52 @@ final class Panels implements AutoCloseable {
         explain(panel.body,"Add a note, then review your report before sending.");
         EditText note=ui.input("Optional note about a problem or request"); note.setSingleLine(false); note.setMinLines(2); note.setMaxLines(5); note.setFilters(new InputFilter[]{new InputFilter.LengthFilter(4000)}); panel.body.addView(note);
         fullButton(panel.body,"Preview report",()->reportPreview(note.getText().toString()));
-        fullButton(panel.body,"Report setup",()->connections("reports"));
+        fullButton(panel.body,"Own server setup",()->connections("reports"));
     }
     private void reportPreview(String note) {
         Panel panel=new Panel("Review report",false,true);
-        explain(panel.body,"Firmware, memory and radio details. Common identifiers are redacted; check for personal data before sending. Uploads are encrypted to your configured server.");
+        explain(panel.body,"Review firmware, memory and radio details. Common identifiers are masked; check for personal data. Temporary uploads go encrypted to Uguu for 3 hours. Anyone with the complete share link can read them.");
         TextView state=ui.text("Collecting…",17,ui.muted); panel.body.addView(state);
         TextView terminal=ui.text("",13,ui.text); terminal.setTypeface(Typeface.MONOSPACE); terminal.setTextIsSelectable(true);
         ScrollView scroll=new ScrollView(main); scroll.addView(terminal); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        Button send=ui.button("Encrypt & send",()->{}); send.setEnabled(false); panel.body.addView(send,new LinearLayout.LayoutParams(-1,ui.dp(80)));
-        final String[] report={null}; final boolean[] sent={false};
+        LinearLayout actions=ui.row(); Button temporary=ui.button("Upload for 3 hours",()->{}),send=ui.button("Send to my server",()->{});
+        temporary.setEnabled(false); temporary.setTextColor(ui.accent); send.setEnabled(false);
+        ui.weighted(actions,temporary,80); ui.weighted(actions,send,80); panel.body.addView(actions);
+        final String[] report={null},shareLink={null}; final boolean[] sent={false};
+        Button share=ui.button("Share link",()->temporaryShareLink(shareLink[0])); share.setVisibility(View.GONE); panel.body.addView(share,new LinearLayout.LayoutParams(-1,ui.dp(80)));
         Runnable ready=()->{
             boolean configured=!main.prefs.get("diagnostics_url",BuildConfig.DIAGNOSTICS_URL).isEmpty() && !main.prefs.get("diagnostics_key",BuildConfig.DIAGNOSTICS_PUBLIC_KEY).isEmpty();
             send.setEnabled(report[0]!=null && configured && !panel.busy && !sent[0]);
-            if(!panel.busy && !sent[0] && report[0]!=null) state.setText(configured ? "Ready to send" : "Configure a server in Report setup before sending");
+            temporary.setEnabled(report[0]!=null && !panel.busy && !sent[0]);
+            if(!panel.busy && !sent[0] && report[0]!=null) state.setText(configured ? "Ready to upload" : "Temporary sharing is ready · no server setup needed");
         };
+        temporary.setOnClickListener(v->{
+            if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; ready.run(); state.setText("Encrypting & uploading to Uguu…");
+            panel.scope.run(()->Diagnostics.uploadTemporary(report[0],note),value->{
+                panel.busy=false; sent[0]=true; shareLink[0]=value; share.setVisibility(View.VISIBLE); state.setText("Uploaded · copy your share link before closing"); temporaryShareLink(value);
+            },error->{ panel.busy=false; ready.run(); state.setText(error.getMessage()); });
+        });
         send.setOnClickListener(v->{
-            if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; send.setEnabled(false); state.setText("Encrypting & sending…");
+            if(report[0]==null || panel.busy || sent[0]) return; panel.busy=true; ready.run(); state.setText("Encrypting & sending to your server…");
             panel.scope.run(()->Diagnostics.upload(main.prefs,report[0],note),value->{ panel.busy=false; sent[0]=true; state.setText(value); },error->{ panel.busy=false; ready.run(); state.setText(error.getMessage()); });
         });
         panel.revealed=ready;
         String radio=main.radio.diagnostics(); panel.scope.run(()->Diagnostics.collect(main,radio,true),value->{ report[0]=value; terminal.setText("Note: "+note+"\n\n"+value); ready.run(); },error->state.setText(error.getMessage()));
+    }
+    private void temporaryShareLink(String link) {
+        if(link==null) return;
+        Panel panel=new Panel("Report uploaded",true,true);
+        explain(panel.body,"Copy the full link and paste it in your support chat within 3 hours. It includes the decryption key: anyone with this link can read the report. Copy it before closing.");
+        TextView address=ui.text(link,16,ui.muted); address.setTextIsSelectable(true); panel.body.addView(address); ui.gap(panel.body,20);
+        fullButton(panel.body,"Copy share link",()->{
+            ClipData clip=ClipData.newPlainText("BreakDash report link",link);
+            android.os.PersistableBundle extras=new android.os.PersistableBundle(); extras.putBoolean("android.content.extra.IS_SENSITIVE",true); clip.getDescription().setExtras(extras);
+            ((ClipboardManager)main.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(clip); main.toast("Share link copied");
+        });
+        fullButton(panel.body,"Share…",()->{
+            Intent share=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,link);
+            try { main.startActivity(Intent.createChooser(share,"Share BreakDash report")); } catch(Exception error) { panel.message("No sharing app is available · use Copy share link"); }
+        });
     }
     private void download(Panel parent,Downloads.Release release,boolean aurora) {
         if(!aurora && (release==null || release.url.isEmpty() || !release.newer || BuildConfig.DEBUG)) { parent.message("No compatible release update is available"); return; }

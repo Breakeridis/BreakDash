@@ -155,6 +155,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 
 **v1.0.2 revision:** [Settings, Updates and About](settings-layout.md) replaces the original combined-button and dialog layout in sections 3.6–3.8 below. The dashboard now has three actions; technical configuration and reports use separate screens. Encrypted reports use the configured receiver only, without GitHub issue storage.
 
+**v1.0.4 revision:** [Temporary encrypted sharing](temporary-reports.md) adds Uguu uploads with a three-hour advertised lifetime, preview-before-upload, and a complete share link containing a one-time decryption key. The optional owner-server route remains available; neither route creates GitHub issues.
+
 Houses system tools, software updates, and configuration controls.
 
 #### Core Sub-Functions:

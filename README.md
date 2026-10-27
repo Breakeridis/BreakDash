@@ -29,7 +29,7 @@ The two APKs are standalone installers, each containing only one native architec
 - **Dock:** All Apps opens a searchable grid; hold an app in that grid to pin it. The scrollable dock supports four favorites. Hold a pinned shortcut to replace or remove it.
 - **Settings:** four large tabs: **Appearance** (Day/Night), **Maps** (connect/disconnect and providers), **Apps** (Aurora Store and Google services), and **Device** (default launcher, Android settings, health and advanced tools). Local ADB and the full inspector are under **Device → Advanced tools**. Technical details open separately.
 - **Updates:** installed/latest versions, a clear status and reason when installation is unavailable, checked APK downloads, and **What's new**. The notification dot appears here. Development builds offer **Get signed release** in the browser instead of attempting an incompatible in-place update.
-- **About:** app version and three large tiles: **Report a problem**, **Device info**, and **Credits**. Reports have an optional note, then a preview with an explicit **Encrypt & send** action. The uploaded report is exactly the capture shown in that preview.
+- **About:** app version and three large tiles: **Report a problem**, **Device info**, and **Credits**. Reports have an optional note and a preview. **Upload for 3 hours** encrypts the exact previewed capture to Uguu and returns a link to copy/share. No account or server setup is required. **Send to my server** retains the optional owner-controlled receiver.
 
 The CPU/RAM sampler runs only while **Settings → Device → Device health** is visible and the activity is resumed. GPS subscriptions, clock ticks, map rendering, and radio subscriptions stop when a dialog covers the dashboard or another app takes over. Opening a diagnostic report performs a one-shot capture. Automatic update checks are limited to once per day while the cockpit is visible; they never download or install automatically. Panels provide **Back** for one level and **Close** to return directly to the cockpit.
 
@@ -66,9 +66,11 @@ The updater reads `Breakeridis/BreakDash` by default; change it under **Updates 
 
 See [hardware validation](docs/hardware-validation.md) before testing vendor integration. Google package actions are restricted in code to Framework, Play Services, and Play Store; no arbitrary package or shell command is accepted from UI input. Enable/Disable buttons try local ADB, then available root, then the system API. All actions are user initiated. ADB authorization keys stay under the app's private, non-backed-up storage, and each connection closes when its action ends. BreakDash cannot enable TCP debugging without existing system privileges.
 
-The inspector includes raw firmware properties and system settings. Cloud capture masks common identifier/credential keys and does not include GPS locations; review the preview before sending because firmware can store additional personal values under unexpected keys. An upload encrypts the report and note with AES-256-GCM, then wraps the AES key using your RSA public key and OAEP-SHA256. The private key is held by you, outside both the APK and receiver.
+The inspector includes raw firmware properties and system settings. Cloud capture masks common identifier/credential keys and does not include GPS locations; review the preview before sending because firmware can store additional personal values under unexpected keys. Both sharing methods encrypt the report and note with AES-256-GCM before upload.
 
-Cloud uploads remain unavailable until you configure an HTTPS receiver and public key. The optional [encrypted inbox](backend/README.md) stores encrypted files on **your own server**. It does not decrypt them, forward them, or open GitHub issues. No cloud service is provisioned or deployed by this project.
+**Temporary sharing:** open **About → Report a problem → Preview report → Upload for 3 hours**, then copy/share the complete link. [Uguu](https://uguu.se/) advertises a three-hour file lifetime. Each upload has a fresh encryption key, kept in the share link's `#breakdash-v1=…` fragment rather than sent to Uguu. Anyone with the complete link can decrypt the file. Copy the link before closing; it is not saved in preferences or logs. Paste it in your support chat before expiry. The recipient-side [reader and format guide](docs/temporary-reports.md) explain how to retrieve and decrypt it without sending the key to the host. Uploads happen only on an explicit tap; no background reporting or automatic retries.
+
+**Own server:** configure an HTTPS receiver and RSA public key under **About → Report a problem → Own server setup** to enable **Send to my server**. This wraps the AES key with RSA-OAEP-SHA256; the private key stays with you. The optional [encrypted inbox](backend/README.md) stores ciphertext on **your own server**, without decrypting, forwarding, or creating GitHub issues. No server is provisioned or deployed by this project.
 
 ## Project guide
 
@@ -78,7 +80,7 @@ Cloud uploads remain unavailable until you configure an HTTPS receiver and publi
 | `app/src/main/java/com/breakdash/launcher/core` | Pure Java frequency, semantic version, camera tracking, and route-progress logic |
 | `app/src/test` | CI-only tests for units, boundaries, update ordering, and route progression |
 | `.github/workflows/android.yml` | Remote checks, APK artifacts, signing, and releases |
-| `backend` | Optional encrypted-file inbox and owner decryption utility |
+| `backend` | Temporary-report reader, synthetic CI checks, and optional owner-server inbox |
 | `docs` | Original hardware/specification references and on-device validation checklist |
 
 Implementation sources: [MapLibre Android lifecycle](https://github.com/maplibre/maplibre-native/blob/main/platform/android/docs/getting-started.md), [OpenFreeMap mobile styles](https://openfreemap.org/quick_start/), [Photon API and usage policy](https://github.com/komoot/photon), [OSRM routing API](https://project-osrm.org/docs/v5.15.2/api/), [dadb](https://github.com/mobile-dev-inc/dadb), and [Android Gradle compatibility](https://developer.android.com/build/releases/about-agp).

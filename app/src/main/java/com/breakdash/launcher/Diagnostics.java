@@ -5,7 +5,7 @@ import android.database.Cursor;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Base64;
-import java.io.File;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
@@ -21,6 +21,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.OAEPParameterSpec;
 import javax.crypto.spec.PSource;
 import org.json.JSONObject;
+import com.breakdash.launcher.core.TemporaryReport;
 
 /** Collected on demand; upload is invoked only by the explicit Upload report action. */
 final class Diagnostics {
@@ -55,6 +56,35 @@ final class Diagnostics {
         try (java.io.InputStream input = new java.io.FileInputStream(path)) { return Http.read(input, 65536); }
         catch(Exception error) { return "Unavailable: " + error.getMessage() + "\n"; }
     }
+    private static byte[] payload(String report,String note) throws Exception {
+        byte[] bytes=new JSONObject().put("version",BuildConfig.VERSION_NAME).put("note",note).put("report",report).toString().getBytes(StandardCharsets.UTF_8);
+        if(bytes.length>TemporaryReport.MAX_PLAINTEXT) throw new IOException("Report exceeds upload limit. Copy it from the inspector for manual review.");
+        return bytes;
+    }
+    static String uploadTemporary(String report,String note) throws Exception {
+        Http.checkInterrupted(); TemporaryReport.Sealed sealed=TemporaryReport.seal(payload(report,note));
+        String boundary="BreakDash-"+java.util.UUID.randomUUID();
+        byte[] prefix=("--"+boundary+"\r\nContent-Disposition: form-data; name=\"files[]\"; filename=\"BreakDash-report.bdr\"\r\nContent-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.US_ASCII);
+        byte[] suffix=("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.US_ASCII);
+        HttpURLConnection connection=Http.open("https://uguu.se/upload","POST");
+        connection.setDoOutput(true); connection.setRequestProperty("Content-Type","multipart/form-data; boundary="+boundary);
+        connection.setFixedLengthStreamingMode(prefix.length+sealed.encrypted.length+suffix.length);
+        try {
+            try(java.io.OutputStream output=connection.getOutputStream()) {
+                Http.checkInterrupted(); output.write(prefix);
+                for(int offset=0;offset<sealed.encrypted.length;offset+=8192) {
+                    Http.checkInterrupted(); output.write(sealed.encrypted,offset,Math.min(8192,sealed.encrypted.length-offset));
+                }
+                Http.checkInterrupted(); output.write(suffix);
+            }
+            int code=connection.getResponseCode();
+            if(code<200 || code>=300) throw new IOException("Temporary upload unavailable (HTTP "+code+"). Try again later.");
+            JSONObject response;
+            try(java.io.InputStream input=connection.getInputStream()) { response=new JSONObject(Http.read(input,16384)); }
+            if(!response.optBoolean("success") || response.optJSONArray("files")==null || response.getJSONArray("files").length()!=1) throw new IOException("Uguu could not accept the report. Try again later.");
+            Http.checkInterrupted(); return sealed.shareLink(response.getJSONArray("files").getJSONObject(0).getString("url"));
+        } finally { connection.disconnect(); }
+    }
     static String upload(Prefs prefs,String report,String note) throws Exception {
         String endpoint=prefs.get("diagnostics_url",BuildConfig.DIAGNOSTICS_URL),pem=prefs.get("diagnostics_key",BuildConfig.DIAGNOSTICS_PUBLIC_KEY);
         if(endpoint.isEmpty() || pem.isEmpty()) throw new IllegalStateException("Configure your server and public key in Report setup");
@@ -63,9 +93,7 @@ final class Diagnostics {
         KeyGenerator generator=KeyGenerator.getInstance("AES"); generator.init(256); SecretKey key=generator.generateKey();
         byte[] nonce=new byte[12]; new SecureRandom().nextBytes(nonce);
         Cipher aes=Cipher.getInstance("AES/GCM/NoPadding"); aes.init(Cipher.ENCRYPT_MODE,key,new GCMParameterSpec(128,nonce));
-        JSONObject payload=new JSONObject().put("version",BuildConfig.VERSION_NAME).put("note",note).put("report",report);
-        byte[] plaintext=payload.toString().getBytes(StandardCharsets.UTF_8);
-        if(plaintext.length>250000) throw new java.io.IOException("Report exceeds upload limit. Copy it from the inspector for manual review.");
+        byte[] plaintext=payload(report,note);
         byte[] ciphertext=aes.doFinal(plaintext);
         Cipher rsa=Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
         rsa.init(Cipher.ENCRYPT_MODE,publicKey,new OAEPParameterSpec("SHA-256","MGF1",MGF1ParameterSpec.SHA256,PSource.PSpecified.DEFAULT));

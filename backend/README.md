@@ -1,6 +1,6 @@
 # Optional encrypted diagnostic inbox
 
-BreakDash can upload a report only after its owner configures an HTTPS endpoint and RSA public key and taps **Encrypt & upload report**. The default app build has no diagnostics endpoint or public key.
+This receiver is the optional **Send to my server** route. It requires an HTTPS endpoint and RSA public key. The default app build has neither configured. The separate **Upload for 3 hours** route uploads encrypted files directly to Uguu without this receiver; see [temporary sharing](../docs/temporary-reports.md) and `read-temporary-report.mjs` for the recipient-side reader.
 
 This receiver is a small Node 22 program for an **owner-controlled server**. It writes encrypted JSON files to a private server directory. It makes no outbound network calls, does not decrypt, has no GitHub integration, and uses no third-party storage provider. It is not deployed by the Android workflow. Cloudflare R2 and GitHub issue storage are deliberately absent.
 
@@ -34,8 +34,8 @@ These are deployment instructions, not commands run during development. No app c
    ```
 
 3. Put an HTTPS reverse proxy in front of `127.0.0.1:8787` and expose only `/report`. The Node listener stays on loopback. Keep storage outside all public/static serving paths. Neither the server nor receiver needs the private RSA key.
-4. In BreakDash **Settings → Connections**, enter your HTTPS `/report` URL and paste `diagnostics-public.pem`. Alternatively set repository Actions variables `BREAKDASH_DIAGNOSTICS_URL` and `BREAKDASH_DIAGNOSTICS_PUBLIC_KEY` for signed releases.
-5. Preview a report, then send a test note from the head unit. Retrieve its encrypted JSON from your own server.
+4. In BreakDash **About → Report a problem → Own server setup**, enter your HTTPS `/report` URL and paste `diagnostics-public.pem`. Alternatively set repository Actions variables `BREAKDASH_DIAGNOSTICS_URL` and `BREAKDASH_DIAGNOSTICS_PUBLIC_KEY` for signed releases.
+5. Preview a report, then tap **Send to my server**. Retrieve its encrypted JSON from your own server.
 6. On an owner-controlled machine or private cloud terminal with the backed-up key:
 
    ```sh

@@ -16,7 +16,7 @@ The Maps connection screen explains the network/location requests before connect
 
 Updates explains disabled actions. A release with no newer version shows Up to date. A newer version without a matching ABI shows Update unavailable. BreakDash Dev offers a browser download of the signed release, which is a separate package. The production updater still verifies its own package, higher version code, signature, and supplied checksum before opening Android's installer.
 
-Reports follow note → preview → Encrypt & send. The preview includes the note and the captured report. Sending uses that same capture; it does not silently collect another one. Sending is disabled until capture completes and a receiver/public key is configured. Reports remain encrypted and are stored only by the user-configured receiver; there is no GitHub issue storage.
+Reports follow note → preview → upload. The preview includes the note and the captured report. Sending uses that same capture; it does not silently collect another one. Since v1.0.4, **Upload for 3 hours** encrypts to Uguu and returns a complete share link, with a one-time key in its fragment. **Send to my server** still requires a receiver/public key. Both stay disabled until capture completes. Temporary sharing needs no server setup and has explicit Copy/Share actions; full links are kept in memory rather than preferences or logs. There is no GitHub issue storage. See [temporary reporting](temporary-reports.md).
 
 Device checks after installing the signed APK:
 

@@ -10,6 +10,11 @@ on:
         required: false
         type: string
         default: ''
+      probe_temporary_sharing:
+        description: 'Test Uguu with an encrypted synthetic report (no device data)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -80,8 +85,15 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
-      - name: Verify diagnostics receiver (GitHub only)
-        run: node --test backend/receiver.test.mjs
+      - name: Verify encrypted reporting and Java/Node sharing compatibility (GitHub only)
+        env:
+          BREAKDASH_TEMPORARY_FIXTURE_DIR: app/build/reports/temporary-share
+        run: node --test backend/*.test.mjs
+      - name: Probe temporary sharing with synthetic data
+        if: github.event_name == 'workflow_dispatch' && inputs.probe_temporary_sharing
+        env:
+          BREAKDASH_TEMPORARY_FIXTURE_DIR: app/build/reports/temporary-share
+        run: node backend/probe-temporary-sharing.mjs
 
   release:
     name: Signed release
