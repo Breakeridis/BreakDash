@@ -29,6 +29,14 @@ test('tampering and another recipient key cannot decrypt',()=>{
   const other=generateKeyPairSync('rsa',{modulusLength:2048,privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});
   assert.throws(()=>decryptFeedback(file,other.privateKey));
 });
+test('one bounded read retry handles ntfy asynchronous cache insertion',async()=>{
+  let polls=0;
+  const result=await readLatestFeedback(topic,key,async address=>{
+    if(address.includes('/json?') && ++polls===1) return new Response('');
+    return mocked([message()])(address);
+  },now);
+  assert.equal(polls,2); assert.equal(result.note,expected.note);
+});
 test('rejects external attachment hosts, topic injection and oversized responses',async()=>{
   for(const url of ['https://evil.test/file/id.bdn','http://ntfy.sh/file/id.bdn','https://ntfy.sh@evil.test/file/id.bdn','https://ntfy.sh/file/id.bdn?key=bad']) assert.throws(()=>attachmentUrl(url));
   assert.throws(()=>topicUrl('breakdash-test/other'));
@@ -40,7 +48,9 @@ test('rejects external attachment hosts, topic injection and oversized responses
 test('expired, absent and damaged newest reports are explicit, never an older report',async()=>{
   const expired=message(); expired.attachment.expires=now/1000-1;
   await assert.rejects(()=>readLatestFeedback(topic,key,mocked([expired]),now),/expired/);
-  await assert.rejects(()=>readLatestFeedback(topic,key,mocked([]),now),/No recent/);
+  let polls=0;
+  await assert.rejects(()=>readLatestFeedback(topic,key,async()=>{ polls++; return new Response(''); },now),/No recent/);
+  assert.equal(polls,2);
   const damaged=Buffer.from(file); damaged[damaged.length-1]^=1;
   await assert.rejects(()=>readLatestFeedback(topic,key,mocked([message()],damaged),now),/damaged/);
 });

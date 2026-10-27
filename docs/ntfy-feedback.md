@@ -35,7 +35,7 @@ In the configured Windows workspace, when the user asks to check feedback:
 
 This is read-only retrieval and diagnostic analysis. It loads the saved fixed topic and decrypts the local DPAPI key, passing the key to Node through standard input rather than command-line arguments or disk. Only report output is printed. No new share link is needed. The workspace's AGENTS.md documents this entry point for later conversations.
 
-The underlying `read-ntfy-feedback.mjs` makes a bounded `GET /<topic>/json?poll=1&since=3h`, selects the latest matching attachment, validates its HTTPS `ntfy.sh/file/…` URL, rejects redirects and oversized/expired files, and decrypts with the recipient key. It prints the posting/expiry timestamps along with version/note/report. Do not send private keys, real reports, or full temporary-share links to public CI or search/browser proxies. Nothing checks the topic automatically between user requests.
+The underlying `read-ntfy-feedback.mjs` makes a bounded `GET /<topic>/json?poll=1&since=3h`, selects the latest matching attachment, validates its HTTPS `ntfy.sh/file/…` URL, rejects redirects and oversized/expired files, and decrypts with the recipient key. If the inbox is empty, it retries that read once after 1.5 seconds to allow ntfy's [asynchronous cache writes](https://docs.ntfy.sh/config/#message-cache_1) to finish. It prints the posting/expiry timestamps along with version/note/report. Do not send private keys, real reports, or full temporary-share links to public CI or search/browser proxies. Nothing checks the topic automatically between user requests; uploads never retry automatically.
 
 ## Encryption format
 

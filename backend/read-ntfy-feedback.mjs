@@ -40,10 +40,16 @@ export function attachmentUrl(value) {
   return url.href;
 }
 export async function readLatestFeedback(topic,privatePem,fetcher=fetch,now=Date.now()) {
-  const messages=(await limitedDownload(`${topicUrl(topic)}/json?poll=1&since=3h`,262144,fetcher)).toString('utf8');
-  let parsed; try { parsed=messages.split('\n').filter(Boolean).map(line=>JSON.parse(line)); } catch { throw new Error('Invalid inbox response'); }
-  const reports=parsed.map((message,index)=>({...message,index})).filter(m=>m.event==='message' && m.topic===topic && m.attachment?.name==='BreakDash-feedback.bdn')
-    .sort((a,b)=>b.time-a.time || b.index-a.index);
+  const inbox=`${topicUrl(topic)}/json?poll=1&since=3h`; let reports=[];
+  for(let attempt=0;attempt<2;attempt++) {
+    const messages=(await limitedDownload(inbox,262144,fetcher)).toString('utf8');
+    let parsed; try { parsed=messages.split('\n').filter(Boolean).map(line=>JSON.parse(line)); } catch { throw new Error('Invalid inbox response'); }
+    reports=parsed.map((message,index)=>({...message,index})).filter(m=>m.event==='message' && m.topic===topic && m.attachment?.name==='BreakDash-feedback.bdn')
+      .sort((a,b)=>b.time-a.time || b.index-a.index);
+    if(reports.length || attempt===1) break;
+    // ntfy.sh batches cache writes asynchronously (about one second). Only this finite manual read retries.
+    await new Promise(resolve=>setTimeout(resolve,1500));
+  }
   if(!reports.length) throw new Error('No recent feedback found. Send feedback from BreakDash and check within 3 hours.');
   // Fail visibly on a damaged, forged, or expired newest report rather than quietly returning an older one.
   const latest=reports[0],attachment=latest.attachment;
