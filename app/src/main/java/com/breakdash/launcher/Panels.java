@@ -40,8 +40,8 @@ final class Panels implements AutoCloseable {
     private final List<Panel> stack=new ArrayList<>();
     private boolean resumed;
     private Panel settingsPanel;
-    private TextView monitor,privileges;
-    private final List<TextView> googleStatus=new ArrayList<>();
+    private TextView monitor;
+    private String packageActionStatus="",packageActionDetails="";
     private boolean monitorPending;
     private final Runnable sample=this::sample;
     Panels(MainActivity main) { this.main=main; ui=main.ui; }
@@ -97,6 +97,12 @@ final class Panels implements AutoCloseable {
     }
     private void explain(LinearLayout body,String value) { TextView text=ui.text(value,15,ui.muted); text.setPadding(0,ui.dp(6),0,ui.dp(12)); body.addView(text); }
     private void fullButton(LinearLayout body,String label,Runnable action) { Button button=ui.button(label,action); button.setTextSize(18); body.addView(button,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(body,8); }
+    private TextView compactLink(LinearLayout body,String label,Runnable action) {
+        TextView link=ui.text(label,16,ui.muted); link.setMinHeight(ui.dp(60)); link.setGravity(Gravity.CENTER_VERTICAL);
+        link.setPadding(ui.dp(12),0,ui.dp(12),0); link.setSingleLine(true); link.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        link.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),null,null));
+        link.setFocusable(true); link.setOnClickListener(v->action.run()); body.addView(link,new LinearLayout.LayoutParams(-1,ui.dp(60))); return link;
+    }
 
     void appPicker(String title,List<String> excluded,Consumer<AppCatalog.App> selected) {
         Panel panel=new Panel(title,false); EditText query=ui.input("Search installed apps"); panel.body.addView(query);
@@ -202,6 +208,7 @@ final class Panels implements AutoCloseable {
         layout.addView(pageScroll,new LinearLayout.LayoutParams(0,-1,1));
         String[] tabs={"Appearance","Maps","Apps","Device"}; Button[] buttons=new Button[tabs.length]; final int[] selected={0};
         Runnable render=()->{
+            if(panel.busy) return;
             page.removeAllViews(); pageScroll.scrollTo(0,0);
             for(int i=0;i<buttons.length;i++) {
                 buttons[i].setTextColor(i==selected[0] ? ui.accent : ui.text); buttons[i].setSelected(i==selected[0]);
@@ -210,23 +217,18 @@ final class Panels implements AutoCloseable {
             page.addView(ui.text(tabs[selected[0]],28,ui.text)); ui.gap(page,20);
             switch(selected[0]) {
                 case 0:
-                    explain(page,"Choose your screen theme");
-                    LinearLayout themes=ui.row();
-                    Button day=ui.button("☀  Day",()->setTheme(true)),night=ui.button("☾  Night",()->setTheme(false));
-                    day.setTextSize(22); night.setTextSize(22); (main.prefs.light() ? day : night).setTextColor(ui.accent);
-                    ui.weighted(themes,day,100); ui.weighted(themes,night,100); page.addView(themes); break;
+                    ui.toggle(page,"Night mode",!main.prefs.light(),main.prefs.light() ? "Off · Day theme" : "On · Dark theme",night->setTheme(!night));
+                    break;
                 case 1:
                     boolean connected=main.prefs.data.getBoolean("online_maps",false);
-                    explain(page,connected ? "Online maps connected" : "GPS only · maps disconnected");
-                    fullButton(page,connected ? "Disconnect maps" : "Connect maps",()->{
-                        if(main.prefs.data.getBoolean("online_maps",false)) {
+                    ui.toggle(page,"Online maps",connected,connected ? "On · Connected" : "Off · GPS only",enabled->{
+                        if(!enabled) {
                             main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); panel.revealed.run();
-                        } else onlineMaps();
+                        } else { panel.revealed.run(); onlineMaps(); }
                     });
-                    fullButton(page,"Map providers",()->connections("maps")); break;
+                    compactLink(page,"Map providers  ›",()->connections("maps")); break;
                 case 2:
-                    fullButton(page,"Aurora Store",this::aurora);
-                    fullButton(page,"Google services",this::google); break;
+                    appsSettings(panel,page); break;
                 default:
                     explain(page,NavigationDiagnostics.defaultHome(main).startsWith(main.getPackageName()+"/") ? "BreakDash is the default Home" : "Choose BreakDash as the default Home");
                     fullButton(page,"Default launcher",()->openSettings(Settings.ACTION_HOME_SETTINGS));
@@ -236,7 +238,7 @@ final class Panels implements AutoCloseable {
             }
         };
         for(int i=0;i<tabs.length;i++) {
-            final int index=i; buttons[i]=ui.button(tabs[i],()->{ selected[0]=index; render.run(); }); buttons[i].setTextSize(20);
+            final int index=i; buttons[i]=ui.button(tabs[i],()->{ if(!panel.busy) { selected[0]=index; render.run(); } }); buttons[i].setTextSize(20);
             rail.addView(buttons[i],new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(rail,10);
         }
         panel.revealed=render; render.run();
@@ -268,33 +270,67 @@ final class Panels implements AutoCloseable {
             details.scope.run(()->"Root binary: "+(main.system.rootBinaryPresent() ? "detected (not tested)" : "not found")+"\nTCP 5555: "+(main.system.portOpen() ? "open" : "closed"),value->explain(details.body,value),error->details.message(error.getMessage()));
         });
     }
-    private void google() {
-        Panel panel=new Panel("Google services",true,true);
-        privileges=ui.text("Choose a service to enable or disable",16,ui.muted); panel.body.addView(privileges);
-        googleStatus.clear();
-        String[] names={"Google Services Framework","Google Play Services","Google Play Store"};
+    private void appsSettings(Panel panel,LinearLayout page) {
+        boolean installed=main.system.packageInstalled("com.aurora.store");
+        Ui.ToggleRow aurora=ui.toggle(page,"Aurora Store",installed,installed ? "Installed" : "Not installed",null);
+        Button manage=ui.button(installed ? "Open" : "Install",()->{ if(installed) main.launchPackage("com.aurora.store"); else aurora(); });
+        aurora.addView(manage,new LinearLayout.LayoutParams(ui.dp(108),ui.dp(64)));
+        compactLink(page,"Aurora details  ›",this::aurora);
+        ui.heading(page,"GOOGLE SERVICES");
+        List<Ui.ToggleRow> rows=new ArrayList<>();
+        TextView status=ui.text("",16,ui.muted);
+        Runnable refresh=()->{
+            for(int i=0;i<rows.size();i++) {
+                String pkg=SystemTools.GOOGLE[i],state=main.system.packageStatus(pkg);
+                rows.get(i).state("Enabled".equals(state),"Enabled".equals(state) ? "On" : "Disabled".equals(state) ? "Off" : state,!panel.busy);
+            }
+            status.setText(packageActionStatus); status.setVisibility(packageActionStatus.isEmpty() ? View.GONE : View.VISIBLE);
+        };
+        String[] names={"Services Framework","Play Services","Play Store"};
         for(int i=0;i<SystemTools.GOOGLE.length;i++) {
-            String pkg=SystemTools.GOOGLE[i]; LinearLayout packageCard=ui.column(); ui.heading(packageCard,names[i].toUpperCase(Locale.ROOT));
-            TextView status=ui.text("",14,ui.muted); googleStatus.add(status); packageCard.addView(status);
-            LinearLayout controls=ui.row(); ui.weighted(controls,ui.button("Enable",()->changeGoogle(panel,new String[]{pkg},true)),80); ui.weighted(controls,ui.button("Disable",()->changeGoogle(panel,new String[]{pkg},false)),80);
-            ui.weighted(controls,ui.button("Details",()->{
+            String pkg=SystemTools.GOOGLE[i];
+            rows.add(ui.toggle(page,names[i],false,"",enabled->changeGoogle(panel,new String[]{pkg},enabled,refresh)));
+        }
+        page.addView(status); compactLink(page,"Google service tools · Local ADB  ›",this::googleTools); refresh.run();
+    }
+    private void googleTools() {
+        Panel panel=new Panel("Google service tools",true,true);
+        Runnable[] refresh={null};
+        Ui.ToggleRow all=ui.toggle(panel.body,"All Google services",false,"",enabled->changeGoogle(panel,SystemTools.GOOGLE,enabled,refresh[0]));
+        TextView status=ui.text("",16,ui.muted); panel.body.addView(status);
+        refresh[0]=()->{
+            int enabled=0; for(String pkg:SystemTools.GOOGLE) if(main.system.packageEnabled(pkg)) enabled++;
+            all.state(enabled==SystemTools.GOOGLE.length,enabled==3 ? "On · All enabled" : enabled==0 ? "Off · All disabled or missing" : "Mixed · "+enabled+" of 3 enabled",!panel.busy);
+            status.setText(packageActionStatus); status.setVisibility(packageActionStatus.isEmpty() ? View.GONE : View.VISIBLE);
+        };
+        fullButton(panel.body,"Local ADB",this::adb);
+        compactLink(panel.body,"Last action details  ›",()->{
+            Panel details=new Panel("Last service action",true,true); explain(details.body,packageActionDetails.isEmpty() ? "No service changes yet" : packageActionDetails);
+        });
+        String[] names={"Services Framework","Play Services","Play Store"};
+        for(int i=0;i<SystemTools.GOOGLE.length;i++) {
+            String pkg=SystemTools.GOOGLE[i];
+            compactLink(panel.body,names[i]+" commands  ›",()->{
                 Panel details=new Panel("Service details",true,true); explain(details.body,pkg);
                 fullButton(details.body,"Copy enable command",()->copy(SystemTools.command(pkg,true)));
                 fullButton(details.body,"Copy disable command",()->copy(SystemTools.command(pkg,false)));
-            }),80); packageCard.addView(controls); panel.body.addView(packageCard);
+            });
         }
-        LinearLayout all=ui.row(); ui.weighted(all,ui.button("Enable all",()->changeGoogle(panel,SystemTools.GOOGLE,true)),80); ui.weighted(all,ui.button("Disable all",()->changeGoogle(panel,SystemTools.GOOGLE,false)),80); panel.body.addView(all);
-        fullButton(panel.body,"Local ADB",this::adb); panel.revealed=this::refreshStatuses; refreshStatuses();
+        panel.revealed=refresh[0]; refresh[0].run();
     }
     private void aurora() {
-        Panel panel=new Panel("Aurora Store",true,true); TextView status=ui.text(main.system.auroraStatus(),20,ui.text); panel.body.addView(status); ui.gap(panel.body,20);
-        fullButton(panel.body,"Open Aurora Store",()->main.launchPackage("com.aurora.store"));
-        fullButton(panel.body,"Download & install",()->download(panel,null,true));
-        fullButton(panel.body,"Details",()->{
-            Panel details=new Panel("Aurora downloads",true,true);
-            explain(details.body,"Downloads use F-Droid, with official Aurora GitLab as fallback. Android asks before installation. These sources may use different signing certificates.");
-        });
-        panel.revealed=()->status.setText(main.system.auroraStatus());
+        Panel panel=new Panel("Aurora Store",true,true);
+        panel.revealed=()->{
+            panel.body.removeAllViews(); boolean installed=main.system.packageInstalled("com.aurora.store");
+            ui.toggle(panel.body,"Aurora Store",installed,installed ? main.system.auroraStatus() : "Not installed",null);
+            if(installed) fullButton(panel.body,"Open Aurora Store",()->main.launchPackage("com.aurora.store"));
+            else fullButton(panel.body,"Install Aurora Store",()->download(panel,null,true));
+            compactLink(panel.body,"Installation options  ›",()->{
+                Panel details=new Panel("Aurora downloads",true,true);
+                explain(details.body,"Downloads use F-Droid, with official Aurora GitLab as fallback. Android asks before installation. These sources may use different signing certificates.");
+                fullButton(details.body,"Download latest APK",()->download(details,null,true));
+            });
+        }; panel.revealed.run();
     }
     private void sample() {
         Panel panel=settingsPanel; if(panel==null || !panel.top() || monitorPending) return;
@@ -304,17 +340,19 @@ final class Panels implements AutoCloseable {
             if(panel.top()) { monitor.setText(value); main.tasks.main.postDelayed(sample,2000); }
         },error->{ monitorPending=false; if(panel.top()) { monitor.setText(error.getMessage()); main.tasks.main.postDelayed(sample,2000); } });
     }
-    private void refreshStatuses() {
-        for(int i=0;i<googleStatus.size();i++) googleStatus.get(i).setText(main.system.packageStatus(SystemTools.GOOGLE[i]));
-    }
-    private void changeGoogle(Panel panel,String[] packages,boolean enable) {
+    private void changeGoogle(Panel panel,String[] packages,boolean enable,Runnable refresh) {
         if(panel.busy) { panel.message("A system action is already in progress"); return; }
-        panel.busy=true; privileges.setText((enable ? "Enabling" : "Disabling")+" Google packages…");
+        panel.busy=true; packageActionStatus=(enable ? "Enabling" : "Disabling")+"…"; refresh.run();
+        final boolean[] failed={false};
         panel.scope.run(()->{
             StringBuilder results=new StringBuilder();
-            for(String pkg:packages) { Http.checkInterrupted(); try { results.append(main.system.toggle(pkg,enable)); } catch(Exception error) { results.append(pkg).append(": ").append(error.getMessage()); } results.append('\n'); }
+            for(String pkg:packages) { Http.checkInterrupted(); try { results.append(main.system.toggle(pkg,enable)); } catch(Exception error) { failed[0]=true; results.append(pkg).append(": ").append(error.getMessage()); } results.append('\n'); }
             return results.toString();
-        },value->{ panel.busy=false; privileges.setText(value); refreshStatuses(); },error->{ panel.busy=false; privileges.setText(error.getMessage()); refreshStatuses(); });
+        },value->{
+            panel.busy=false; packageActionDetails=value;
+            boolean confirmed=!failed[0]; for(String pkg:packages) if(main.system.packageEnabled(pkg)!=enable) confirmed=false;
+            packageActionStatus=confirmed ? "Services updated" : "Couldn't change every service · open tools"; refresh.run();
+        },error->{ panel.busy=false; packageActionDetails=error.getMessage(); packageActionStatus="Couldn't change services · open tools"; refresh.run(); });
     }
 
     void about() {
@@ -337,18 +375,31 @@ final class Panels implements AutoCloseable {
         TextView available=ui.text("",18,ui.muted); panel.body.addView(available); ui.gap(panel.body,16);
         TextView status=ui.text("",26,ui.text); panel.body.addView(status);
         TextView reason=ui.text("",17,ui.muted); reason.setPadding(0,ui.dp(8),0,ui.dp(20)); panel.body.addView(reason);
+        LinearLayout downloadAction=ui.column();
         Button install=ui.button(BuildConfig.DEBUG ? "Get signed release" : "Download & install",()->{
+            if(panel.busy || main.release==null) return;
             if(BuildConfig.DEBUG) { if(main.release!=null && !main.release.url.isEmpty()) external(main.release.url); }
-            else download(panel,main.release,false);
-        }); install.setTextSize(20); panel.body.addView(install,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(panel.body,12);
-        LinearLayout secondary=ui.row(); Button check=ui.button("Check again",()->{}),notes=ui.button("What's new",()->{
+            else if(main.release.newer && !main.release.url.isEmpty()) download(panel,main.release,false);
+        }); install.setTextSize(20); downloadAction.addView(install,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(downloadAction,12); panel.body.addView(downloadAction);
+        LinearLayout secondary=ui.row(); Button check=ui.button("Check for updates",()->{}),notes=ui.button("What's new",()->{
             Downloads.Release release=main.release; if(release==null) return;
             Panel details=new Panel("What's new · "+release.tag,true,true); explain(details.body,release.notes.isEmpty() ? "No release notes" : release.notes);
         }); ui.weighted(secondary,check,80); ui.weighted(secondary,notes,80); panel.body.addView(secondary);
-        fullButton(panel.body,"Update source",()->connections("updates"));
+        TextView source=compactLink(panel.body,"",()->{ if(!panel.busy) connections("updates"); });
+        final String[] checkError={null};
+        final String[] renderedRepository={main.prefs.get("repository",BuildConfig.GITHUB_REPOSITORY)};
         Runnable render=()->{
+            String repository=main.prefs.get("repository",BuildConfig.GITHUB_REPOSITORY);
+            if(!repository.equals(renderedRepository[0])) { checkError[0]=null; renderedRepository[0]=repository; }
             Downloads.Release release=main.release; available.setText(release==null ? "" : "Latest release: "+release.tag);
-            notes.setEnabled(release!=null); install.setEnabled(release!=null && !release.url.isEmpty() && (BuildConfig.DEBUG || release.newer));
+            available.setVisibility(release==null ? View.GONE : View.VISIBLE);
+            boolean ready=!panel.busy && checkError[0]==null && release!=null && !release.url.isEmpty() && (BuildConfig.DEBUG || release.newer);
+            downloadAction.setVisibility(ready ? View.VISIBLE : View.GONE); install.setEnabled(ready);
+            notes.setVisibility(release!=null && !panel.busy ? View.VISIBLE : View.GONE);
+            check.setEnabled(!panel.busy); check.setText(release==null ? "Check for updates" : "Check again");
+            source.setText("Source · "+repository+"  ›"); source.setEnabled(!panel.busy);
+            if(panel.busy) { status.setText("Checking…"); reason.setText(""); return; }
+            if(checkError[0]!=null) { status.setText("Couldn't check for updates"); reason.setText(checkError[0]); return; }
             if(BuildConfig.DEBUG) {
                 status.setText("Development build"); reason.setText(release==null ? "Check for a signed release to use regular updates." : release.url.isEmpty() ? "No APK is available for this device." : "Installs as BreakDash alongside BreakDash Dev. Open BreakDash for future updates.");
             } else if(release==null) { status.setText("Check for updates"); reason.setText("Find the latest release on GitHub."); }
@@ -357,10 +408,10 @@ final class Panels implements AutoCloseable {
             else { status.setText("Update available"); reason.setText("Ready to download "+release.tag); }
         };
         check.setOnClickListener(v->{
-            if(panel.busy) return; panel.busy=true; check.setEnabled(false); install.setEnabled(false); status.setText("Checking…"); reason.setText("");
+            if(panel.busy) return; panel.busy=true; checkError[0]=null; render.run();
             panel.scope.run(()->Downloads.latest(main.prefs.get("repository",BuildConfig.GITHUB_REPOSITORY)),value->{
                 panel.busy=false; check.setEnabled(true); main.release=value; main.updateBadge(); main.prefs.data.edit().putLong("update_checked",System.currentTimeMillis()).apply(); render.run();
-            },error->{ panel.busy=false; check.setEnabled(true); render.run(); status.setText("Couldn't check for updates"); reason.setText(error.getMessage()); });
+            },error->{ panel.busy=false; checkError[0]=error.getMessage()==null ? "Try again when connected to the internet." : error.getMessage(); render.run(); });
         });
         panel.revealed=()->{ if(!panel.busy) render.run(); }; render.run(); if(main.release==null) check.performClick();
     }

@@ -19,7 +19,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-/** Package changes require an explicit in-app button. No persistent ADB connection or startup shell. */
+/** Package changes require an explicit in-app control. No persistent ADB connection or startup shell. */
 final class SystemTools {
     static final String[] GOOGLE={"com.google.android.gsf","com.google.android.gms","com.android.vending"};
     private static final Set<String> ALLOWED=new HashSet<>(Arrays.asList(GOOGLE));
@@ -77,6 +77,11 @@ final class SystemTools {
             if((info.flags & ApplicationInfo.FLAG_INSTALLED)==0) return "Hidden / not installed for user 0";
             return info.enabled ? "Enabled" : "Disabled";
         } catch(PackageManager.NameNotFoundException error) { return "Not installed"; }
+    }
+    boolean packageEnabled(String packageName) { return "Enabled".equals(packageStatus(packageName)); }
+    boolean packageInstalled(String packageName) {
+        try { return (context.getPackageManager().getApplicationInfo(packageName,PackageManager.MATCH_DISABLED_COMPONENTS).flags & ApplicationInfo.FLAG_INSTALLED)!=0; }
+        catch(PackageManager.NameNotFoundException error) { return false; }
     }
     String auroraStatus() {
         try { return "Aurora Store " + context.getPackageManager().getPackageInfo("com.aurora.store",0).versionName; }

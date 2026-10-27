@@ -14,17 +14,20 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.TextView;
+import java.util.function.Consumer;
 
 final class Ui {
     final Context context;
     final boolean light;
-    final int bg,card,border,text,muted,accent,amber;
+    final int bg,card,border,text,muted,accent,amber,green;
     Ui(Context context,boolean light) {
         this.context=context; this.light=light;
         bg=Color.parseColor(light ? "#EEF3F5" : "#0A0E17"); card=Color.parseColor(light ? "#FFFFFF" : "#111A26");
         border=Color.parseColor(light ? "#CDDAE0" : "#23303F"); text=Color.parseColor(light ? "#12232E" : "#F1F6FA");
         muted=Color.parseColor(light ? "#506572" : "#91A4B5"); accent=Color.parseColor(light ? "#007C76" : "#42D6CB"); amber=Color.parseColor(light ? "#946006" : "#F2B86B");
+        green=Color.parseColor(light ? "#18713B" : "#68DF92");
     }
     int dp(float value) { return Math.round(value*context.getResources().getDisplayMetrics().density); }
     LinearLayout column() { LinearLayout layout=new LinearLayout(context); layout.setOrientation(LinearLayout.VERTICAL); return layout; }
@@ -49,6 +52,34 @@ final class Ui {
         Button view=button(value,click); view.setTextSize(13);
         view.setMinHeight(dp(60)); view.setMinimumHeight(dp(60));
         view.setPadding(dp(8),dp(4),dp(8),dp(4)); return view;
+    }
+    final class ToggleRow extends LinearLayout {
+        private final Switch control;
+        private final TextView status;
+        private final String title;
+        private boolean syncing;
+        ToggleRow(String title,Consumer<Boolean> changed) {
+            super(Ui.this.context); this.title=title; setOrientation(HORIZONTAL); setGravity(Gravity.CENTER_VERTICAL);
+            setMinimumHeight(dp(80)); setPadding(dp(16),dp(8),dp(12),dp(8)); setBackground(surface(card,border,16));
+            LinearLayout labels=column(); TextView name=text(title,20,text); name.setTypeface(Typeface.DEFAULT,Typeface.BOLD); labels.addView(name);
+            status=text("",16,muted); status.setPadding(0,dp(5),0,0); labels.addView(status); addView(labels,new LayoutParams(0,-2,1));
+            control=new Switch(context); control.setShowText(false); control.setMinHeight(dp(64)); control.setSwitchMinWidth(dp(58));
+            int[][] states={new int[]{android.R.attr.state_checked},new int[]{}};
+            control.setThumbTintList(new ColorStateList(states,new int[]{green,muted}));
+            control.setTrackTintList(new ColorStateList(states,new int[]{(green & 0x00FFFFFF) | 0x66000000,border}));
+            control.setPadding(dp(16),0,0,0); addView(control,new LayoutParams(dp(92),dp(64)));
+            control.setOnCheckedChangeListener((button,checked)->{ if(!syncing && changed!=null) changed.accept(checked); });
+            setOnClickListener(v->{ if(control.isEnabled()) control.performClick(); });
+            if(changed==null) { control.setClickable(false); control.setFocusable(false); setClickable(false); }
+        }
+        void state(boolean checked,String label,boolean interactive) {
+            syncing=true; control.setChecked(checked); syncing=false; status.setText(label); status.setTextColor(checked ? green : muted);
+            control.setEnabled(interactive); setClickable(interactive); control.setContentDescription(title+", "+label);
+        }
+    }
+    ToggleRow toggle(LinearLayout parent,String title,boolean checked,String status,Consumer<Boolean> changed) {
+        ToggleRow row=new ToggleRow(title,changed); row.state(checked,status,changed!=null);
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2); params.bottomMargin=dp(8); parent.addView(row,params); return row;
     }
     LinearLayout actionTile(String title,String icon,Runnable click) {
         return actionTile(title,icon,14,click);
