@@ -23,35 +23,34 @@ import javax.crypto.spec.PSource;
 import org.json.JSONObject;
 import com.breakdash.launcher.core.TemporaryReport;
 import com.breakdash.launcher.core.FeedbackReport;
+import com.breakdash.launcher.core.ReportPrivacy;
 
 /** Collected on demand; upload is invoked only by the explicit Upload report action. */
 final class Diagnostics {
     private Diagnostics() {}
-    private static boolean sensitive(String name) { return name.toLowerCase(java.util.Locale.US).matches(".*(serial|imei|imsi|password|secret|token|android_id|macaddr|bdaddr|address|ssid|hostname|account).*" ); }
     static String collect(Context context,String radio,boolean cloud) {
         StringBuilder report=new StringBuilder("BreakDash diagnostic report\n");
         report.append("Version: ").append(BuildConfig.VERSION_NAME).append("\nCaptured: ").append(new Date())
                 .append("\nSDK (authoritative): ").append(Build.VERSION.SDK_INT).append("\nReported release: ").append(Build.VERSION.RELEASE)
                 .append("\nBoard: ").append(Build.BOARD).append("\nHardware: ").append(Build.HARDWARE).append("\nModel: ").append(Build.MODEL)
                 .append("\nABIs: ").append(String.join(", ",Build.SUPPORTED_ABIS)).append("\nBuild: ").append(Build.DISPLAY)
-                .append("\nDisplay: ").append(context.getResources().getDisplayMetrics()).append("\n\nRADIO\n").append(radio)
+                .append("\nDisplay: ").append(context.getResources().getDisplayMetrics()).append("\n\nRADIO\n").append(cloud ? ReportPrivacy.text(radio) : radio)
                 .append("\nKERNEL\n").append(file("/proc/version")).append("\nMEMORY (raw; vendor counters may be inflated)\n").append(file("/proc/meminfo"))
-                .append("\nSYSTEM PROPERTIES\n");
+                .append('\n').append(UsbDiagnostics.collect(context,cloud)).append('\n');
+        if(context instanceof MainActivity) report.append(((MainActivity)context).navigationDiagnostics()).append('\n');
+        report.append("SYSTEM PROPERTIES\n");
         try {
             String properties=SystemTools.process(new String[]{"/system/bin/getprop"},4);
-            for(String line:properties.split("\n")) {
-                String key=line.contains("]") ? line.substring(0,line.indexOf(']')) : line;
-                report.append(cloud && sensitive(key) ? key + "]: [redacted]" : line).append('\n');
-            }
+            report.append(cloud ? ReportPrivacy.properties(properties) : properties).append('\n');
         } catch(Exception error) { report.append("Unavailable: ").append(error.getMessage()).append('\n'); }
         report.append("\nSETTINGS.SYSTEM\n");
         try(Cursor cursor=context.getContentResolver().query(Settings.System.CONTENT_URI,new String[]{"name","value"},null,null,"name ASC")) {
             if(cursor!=null) while(cursor.moveToNext() && report.length()<200000) {
                 String key=cursor.getString(0),value=cursor.getString(1);
-                report.append(key).append(" = ").append(cloud && sensitive(key) ? "[redacted]" : value).append('\n');
+                report.append(key).append(" = ").append(cloud ? ReportPrivacy.value(key,value) : value).append('\n');
             }
         } catch(Exception error) { report.append("Unavailable: ").append(error.getMessage()); }
-        return report.toString();
+        return cloud ? ReportPrivacy.text(report.toString()) : report.toString();
     }
     private static String file(String path) {
         try (java.io.InputStream input = new java.io.FileInputStream(path)) { return Http.read(input, 65536); }

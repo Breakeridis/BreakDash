@@ -159,6 +159,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 
 **v1.0.5 revision:** [Fixed encrypted feedback](ntfy-feedback.md) adds **Send feedback** to a stable ntfy topic, using RSA-wrapped per-report AES keys. The recipient checks the stored topic within the attachment lifetime, without requiring a new link from the user.
 
+**v1.0.6 revision:** [Privacy, USB and Home navigation](diagnostic-privacy-and-usb.md) expands upload redaction, adds one-shot USB descriptors/removable storage and own-task diagnostics, and isolates external app tasks so Home returns to the cockpit. Dashboard Back stays at Home.
+
 Houses system tools, software updates, and configuration controls.
 
 #### Core Sub-Functions:

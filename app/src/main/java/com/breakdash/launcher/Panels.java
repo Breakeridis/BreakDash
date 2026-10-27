@@ -92,7 +92,7 @@ final class Panels implements AutoCloseable {
         ((ClipboardManager)main.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("BreakDash",value)); main.toast("Copied");
     }
     private void external(String address) {
-        try { main.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(address))); }
+        try { main.openExternal(new Intent(Intent.ACTION_VIEW,Uri.parse(address))); }
         catch(Exception error) { main.toast("No browser is available"); }
     }
     private void explain(LinearLayout body,String value) { TextView text=ui.text(value,15,ui.muted); text.setPadding(0,ui.dp(6),0,ui.dp(12)); body.addView(text); }
@@ -228,6 +228,7 @@ final class Panels implements AutoCloseable {
                     fullButton(page,"Aurora Store",this::aurora);
                     fullButton(page,"Google services",this::google); break;
                 default:
+                    explain(page,NavigationDiagnostics.defaultHome(main).startsWith(main.getPackageName()+"/") ? "BreakDash is the default Home" : "Choose BreakDash as the default Home");
                     fullButton(page,"Default launcher",()->openSettings(Settings.ACTION_HOME_SETTINGS));
                     fullButton(page,"Android settings",()->openSettings(Settings.ACTION_SETTINGS));
                     fullButton(page,"Device health",this::health);
@@ -242,7 +243,7 @@ final class Panels implements AutoCloseable {
     }
     private void setTheme(boolean light) { if(main.prefs.light()!=light) { main.prefs.light(light); main.recreateTheme(); } }
     private void openSettings(String action) {
-        try { main.startActivity(new Intent(action)); } catch(Exception error) { main.toast("Android settings unavailable"); }
+        try { main.openExternal(new Intent(action)); } catch(Exception error) { main.toast("Android settings unavailable"); }
     }
     private void advanced() {
         Panel panel=new Panel("Advanced tools",true,true);
@@ -417,8 +418,8 @@ final class Panels implements AutoCloseable {
             ((ClipboardManager)main.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(clip); main.toast("Share link copied");
         });
         fullButton(panel.body,"Share…",()->{
-            Intent share=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,link);
-            try { main.startActivity(Intent.createChooser(share,"Share BreakDash report")); } catch(Exception error) { panel.message("No sharing app is available · use Copy share link"); }
+            Intent share=new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,link).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { main.openExternal(Intent.createChooser(share,"Share BreakDash report")); } catch(Exception error) { panel.message("No sharing app is available · use Copy share link"); }
         });
     }
     private void download(Panel parent,Downloads.Release release,boolean aurora) {

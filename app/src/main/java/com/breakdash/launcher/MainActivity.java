@@ -31,6 +31,7 @@ import java.util.Locale;
 
 public final class MainActivity extends Activity {
     final Tasks tasks=new Tasks();
+    private final NavigationDiagnostics navigationTrace=new NavigationDiagnostics();
     Prefs prefs; Ui ui; Panels panels; AppCatalog catalog; SystemTools system;
     RadioController radio; MapPortal portal;
     List<AppCatalog.App> apps=new ArrayList<>();
@@ -56,6 +57,7 @@ public final class MainActivity extends Activity {
     };
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        navigationTrace.event("create",getIntent());
         prefs=new Prefs(this); ui=new Ui(this,prefs.light()); catalog=new AppCatalog(this); system=new SystemTools(this);
         panels=new Panels(this); life=tasks.scope();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -68,6 +70,15 @@ public final class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
     }
     @Override public void onWindowFocusChanged(boolean focused) { super.onWindowFocusChanged(focused); if(focused) immersive(); }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent); navigationTrace.event("new intent",intent);
+        if(Intent.ACTION_MAIN.equals(intent.getAction())) { panels.close(); immersive(); }
+    }
+    void openExternal(Intent intent) {
+        Intent external=new Intent(intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        navigationTrace.event("external launch",external); startActivity(external);
+    }
+    String navigationDiagnostics() { return navigationTrace.collect(this); }
     private void buildDashboard(Bundle state) {
         LinearLayout left=ui.column(),right=ui.column(); FrameLayout middle=new FrameLayout(this);
         CockpitLayout root=new CockpitLayout(this,left,middle,right); root.setBackgroundColor(ui.bg);
@@ -188,14 +199,14 @@ public final class MainActivity extends Activity {
         try {
             ComponentName component=ComponentName.unflattenFromString(value);
             if(component==null) throw new IllegalArgumentException("App shortcut is unavailable");
-            startActivity(Intent.makeMainActivity(component).addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED));
+            openExternal(Intent.makeMainActivity(component));
         } catch(Exception error) { toast("App unavailable. Hold its shortcut to choose another."); }
     }
     void launchPackage(String name) {
         Intent launch=getPackageManager().getLaunchIntentForPackage(name);
-        if(launch==null && name.equals("com.nwd.radio")) launch=new Intent().setComponent(new ComponentName(name,"com.nwd.radio.home_horizontalActivity"));
+        if(launch==null && name.equals("com.nwd.radio")) launch=new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(new ComponentName(name,"com.nwd.radio.home_horizontalActivity"));
         if(launch==null) { toast("App is not installed or is disabled"); return; }
-        try { startActivity(launch); } catch(Exception error) { toast("Unable to open " + name); }
+        try { openExternal(launch); } catch(Exception error) { toast("Unable to open " + name); }
     }
     AppCatalog.App find(String component) { for(AppCatalog.App app:apps) if(app.component.equals(component)) return app; return null; }
     void pin(AppCatalog.App app) {
@@ -291,7 +302,7 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},42); return;
         }
         LocationManager manager=(LocationManager)getSystemService(LOCATION_SERVICE);
-        if(!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) { startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)); return; }
+        if(!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) { openExternal(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)); return; }
         if(!prefs.data.getBoolean("online_maps",false)) panels.onlineMaps(); else toast("GPS works while the dashboard is visible");
     }
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results) {
@@ -324,12 +335,12 @@ public final class MainActivity extends Activity {
     void toast(String message) { if(message!=null && !isFinishing() && !isDestroyed()) Toast.makeText(this,message,Toast.LENGTH_LONG).show(); }
     void recreateTheme() { recreate(); }
     @Override protected void onStart() { super.onStart(); portal.mapView.onStart(); if(life!=null) life.run(catalog::load,result->{ apps=result; defaults(); renderFavorites(); },error->{}); }
-    @Override protected void onResume() { super.onResume(); resumed=true; visibilityChanged(); }
-    @Override protected void onPause() { resumed=false; visibilityChanged(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); navigationTrace.event("resume",null); resumed=true; visibilityChanged(); }
+    @Override protected void onPause() { navigationTrace.event("pause",null); resumed=false; visibilityChanged(); super.onPause(); }
     @Override protected void onStop() { portal.mapView.onStop(); super.onStop(); }
     @Override protected void onSaveInstanceState(Bundle state) { super.onSaveInstanceState(state); portal.mapView.onSaveInstanceState(state); }
     @Override public void onLowMemory() { super.onLowMemory(); portal.mapView.onLowMemory(); catalog.clearIcons(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if(level>=TRIM_MEMORY_RUNNING_LOW) { portal.mapView.onLowMemory(); catalog.clearIcons(); } }
-    @Override public void onBackPressed() { if(!panels.empty()) panels.closeTop(); else panels.settings(); }
+    @Override public void onBackPressed() { if(!panels.empty()) panels.closeTop(); }
     @Override protected void onDestroy() { resumed=false; cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
 }

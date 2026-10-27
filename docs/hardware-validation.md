@@ -9,6 +9,8 @@ All app builds and automated checks belong in GitHub Actions. The following chec
 3. Open Settings → Device → Device health. Record BreakDash PSS with maps disconnected, connected, and during a route. Check real memory pressure with the raw `/proc/meminfo` report; reported total RAM may be inflated.
 4. Open and close Device health repeatedly; CPU sampling must resume each time and stop on all other Settings pages. Change to another app and return; subscriptions must resume without duplicates.
 5. Select the day theme under direct sunlight and the night theme in darkness. Check app picker, scrolling favorites, long-press actions, and the default Home selection. Confirm all six radio presets remain legible in the narrower side column.
+6. Open Radio and test bezel Home and Radio Home, checking that the dashboard returns while audio continues. Test Home/Back after launching other apps and settings. If still stuck, reproduce immediately before sending feedback; the report now includes default-Home, own-task and launch/lifecycle state.
+7. Keep the USB device connected while capturing feedback. Check its VID/PID, interfaces and removable storage state. Verify serials, identifiers and network/location fields are masked in the upload preview. See [privacy, USB and Home checks](diagnostic-privacy-and-usb.md).
 
 ## NWD radio
 
