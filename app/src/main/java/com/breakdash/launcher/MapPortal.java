@@ -50,6 +50,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private final LocationManager locations;
     private final Consumer<Location> changed;
     private final Consumer<String> status;
+    private final float density;
     private boolean active, light, destroyed;
     private int background = Color.rgb(10,14,23);
     private Location lastFix;
@@ -62,6 +63,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
     MapPortal(Activity activity, Prefs prefs, Bundle saved, Consumer<Location> changed, Consumer<String> status, Consumer<Navigation.Place> selected) {
         super(activity);
         this.activity = activity; this.prefs = prefs; this.changed = changed; this.status = status;
+        density=getResources().getDisplayMetrics().density;
         locations = (LocationManager) activity.getSystemService(Activity.LOCATION_SERVICE);
         MapLibre.getInstance(activity);
         mapView = new MapView(activity, new MapLibreMapOptions().textureMode(false).compassEnabled(false).rotateGesturesEnabled(true)
@@ -179,7 +181,9 @@ final class MapPortal extends FrameLayout implements LocationListener {
             for (Point point:value.geometry) points.add(new LatLng(point.latitude(),point.longitude()));
             map.cancelAllVelocityAnimations();
             tracking.previewRoute(SystemClock.elapsedRealtime());
-            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),80));
+            int roundPadding=Math.round(Math.min(getWidth(),getHeight())*.20f);
+            int bottomPadding=Math.max(roundPadding,Math.round(176*density));
+            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),roundPadding,roundPadding,roundPadding,bottomPadding));
             if(active) postDelayed(finishPreview,MapTracking.ROUTE_PREVIEW_MS);
         } else { tracking.recenter(); renderFix(); }
         changed.accept(fix());
@@ -194,11 +198,12 @@ final class MapPortal extends FrameLayout implements LocationListener {
     void destroy() { removeCallbacks(finishPreview); active(false); destroyed=true; mapView.onDestroy(); }
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         if(event.getActionMasked()==MotionEvent.ACTION_DOWN) {
-            float dx=event.getX()-getWidth()/2f,dy=event.getY()-getHeight()/2f,radius=Math.min(getWidth(),getHeight())/2f-14;
+            float dx=event.getX()-getWidth()/2f,dy=event.getY()-getHeight()/2f,radius=mapRadius();
             if(dx*dx+dy*dy>radius*radius) return false;
         }
         return super.dispatchTouchEvent(event);
     }
+    private float mapRadius() { return Math.max(0,Math.min(getWidth(),getHeight())/2f-5*density); }
     @Override public void onProviderEnabled(String provider) { status.accept("Acquiring satellites"); }
     @Override public void onProviderDisabled(String provider) { lastFix=null; status.accept("GPS is switched off"); changed.accept(null); }
     @Override public void onStatusChanged(String provider,int status,Bundle extras) {}
@@ -206,13 +211,13 @@ final class MapPortal extends FrameLayout implements LocationListener {
         final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); final Path mask=new Path();
         Ring(Activity context) { super(context); setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); }
         @Override protected void onDraw(Canvas canvas) {
-            float cx=getWidth()/2f,cy=getHeight()/2f,radius=Math.min(cx,cy)-14;
+            float cx=getWidth()/2f,cy=getHeight()/2f,radius=mapRadius();
             mask.reset(); mask.setFillType(Path.FillType.EVEN_ODD); mask.addRect(0,0,getWidth(),getHeight(),Path.Direction.CW); mask.addCircle(cx,cy,radius,Path.Direction.CW);
             paint.setStyle(Paint.Style.FILL); paint.setColor(background); canvas.drawPath(mask,paint);
-            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setColor(Color.parseColor(light ? "#B9C8CF" : "#253342")); canvas.drawCircle(cx,cy,radius+3,paint);
-            paint.setColor(Color.parseColor("#42D6CB")); paint.setStrokeWidth(3); canvas.drawArc(cx-radius-8,cy-radius-8,cx+radius+8,cy+radius+8,225,90,false,paint);
-            paint.setStrokeWidth(1); paint.setColor(Color.parseColor(light ? "#7D919D" : "#405263"));
-            for(int i=0;i<60;i++){ double a=i*Math.PI/30; float outer=radius+10,inner=radius+(i%5==0?3:7); canvas.drawLine(cx+(float)Math.sin(a)*inner,cy+(float)Math.cos(a)*inner,cx+(float)Math.sin(a)*outer,cy+(float)Math.cos(a)*outer,paint); }
+            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(density); paint.setColor(Color.parseColor(light ? "#B9C8CF" : "#253342")); canvas.drawCircle(cx,cy,radius+density,paint);
+            paint.setColor(Color.parseColor("#42D6CB")); paint.setStrokeWidth(2*density); float arcRadius=radius+3*density; canvas.drawArc(cx-arcRadius,cy-arcRadius,cx+arcRadius,cy+arcRadius,225,90,false,paint);
+            paint.setStrokeWidth(density); paint.setColor(Color.parseColor(light ? "#7D919D" : "#405263"));
+            for(int i=0;i<60;i++){ double a=i*Math.PI/30; float outer=radius+3*density,inner=radius+(i%5==0?-3:1)*density; canvas.drawLine(cx+(float)Math.sin(a)*inner,cy+(float)Math.cos(a)*inner,cx+(float)Math.sin(a)*outer,cy+(float)Math.cos(a)*outer,paint); }
         }
     }
     @Override protected void onMeasure(int widthSpec,int heightSpec) {

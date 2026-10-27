@@ -4,11 +4,11 @@ All app builds and automated checks belong in GitHub Actions. The following chec
 
 ## Launcher and memory
 
-1. Install the development APK, open it in landscape, and confirm that controls fit the actual 1280 × 720 screen and vendor system bars.
+1. Install the APK, open it in landscape, and confirm that controls use the full 1280 × 720 screen without an outer frame or column gutters. On a wider phone display, check that the cockpit reaches both screen edges without letterboxing and that the map is still circular. The reference head-unit map region should occupy a 720 × 720 square between readable side columns.
 2. Tap GPS, allow precise location, and check GPS lock outdoors. If location is disabled, use the Android Location screen. A fix expires after 15 seconds; speed must show a dash instead of a stale value.
 3. Open Settings. Record BreakDash PSS with maps disconnected, connected, and during a route. Check real memory pressure with the raw `/proc/meminfo` report; reported total RAM may be inflated.
 4. Open and close Settings repeatedly; CPU sampling must resume each time. Change to another app and return; subscriptions must resume without duplicates.
-5. Select the day theme under direct sunlight and the night theme in darkness. Check app picker, scrolling favorites, long-press actions, and the default Home selection.
+5. Select the day theme under direct sunlight and the night theme in darkness. Check app picker, scrolling favorites, long-press actions, and the default Home selection. Confirm all six radio presets remain legible in the narrower side column.
 
 ## NWD radio
 
@@ -28,9 +28,9 @@ Vendor services are outside this APK and have not been exercised here. Capture t
 ## Navigation and maintenance
 
 1. Use the explicit Connect screen to enable your selected online map services. Check heading-up map rotation while moving and stable orientation while stationary.
-2. Drag, pinch, double-tap, and rotate the map. Confirm GPS speed keeps updating but the camera stays where you moved it. Tap **Recenter** to restore heading-up tracking.
+2. Drag, pinch, double-tap, and rotate the map. Confirm GPS speed keeps updating but the camera stays where you moved it. Tap the floating **◎ Recenter** button at the top right to restore heading-up tracking. Verify Search and Recenter work where they extend over the circular edge, and that touching the speed/GPS/navigation overlays does not drag the map or drop a pin underneath them. Tap the speed unit to toggle units and hold the GPS chip to read its full status.
 3. Hold a map point and check that an amber pin appears at the touched coordinate, including after zooming/rotating and on the scaled phone layout. Tap **Navigate**, verify the route and destination pin, then stop. A pending point can be cleared or replaced; canceling/replacing it during calculation must not display the old route when its response arrives. Without a fresh GPS fix, the pending pin remains available and Navigate stays disabled until GPS locks.
-4. Search, choose a destination, check the full route framing and return to vehicle tracking, verify next-turn and remaining road distance, and cancel. Drag during the route overview; the map must remain in explore mode until Recenter. If off route, use a new search or pinned destination to recalculate.
+4. Search, choose a destination, check the full route framing and return to vehicle tracking, verify next-turn and remaining road distance, and cancel. The route overview should keep its destination marker above the floating navigation banner. Creating, clearing, starting, and stopping navigation must not change the circle's size or shift the touched point. Drag during the route overview; the map must remain in explore mode until Recenter. If off route, use a new search or pinned destination to recalculate.
 5. Revoke location permission or disable GPS; the dashboard must show the loss of a fresh fix. Disconnect internet; the app must remain usable for radio, apps, and GPS instrumentation.
 6. In Settings, Test/Connect ADB only after enabling the loopback daemon. Accept Android's RSA prompt. A closed port or denied authorization should display an error, not claim a successful package change.
 7. Enable and disable each Google package, then test bulk actions. Standard third-party apps normally lack system API permission; ADB/root must be available for package control.

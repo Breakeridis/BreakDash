@@ -45,6 +45,11 @@ final class Ui {
         view.setBackground(new RippleDrawable(ColorStateList.valueOf(light ? 0x22007C76 : 0x3342D6CB),surface(card,border,16),null));
         view.setOnClickListener(v->click.run()); return view;
     }
+    Button mapButton(String value,Runnable click) {
+        Button view=button(value,click); view.setTextSize(13);
+        view.setMinHeight(dp(60)); view.setMinimumHeight(dp(60));
+        view.setPadding(dp(8),dp(4),dp(8),dp(4)); return view;
+    }
     EditText input(String hint) {
         EditText view=new EditText(context); view.setTextColor(text); view.setHintTextColor(muted); view.setHint(hint); view.setTextSize(18);
         view.setSingleLine(true); view.setMinHeight(dp(64)); view.setPadding(dp(16),dp(8),dp(16),dp(8)); view.setBackgroundTintList(ColorStateList.valueOf(accent)); return view;

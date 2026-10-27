@@ -22,6 +22,8 @@ This document is a comprehensive functional and UI/UX blueprint of the **Minimal
 
 The main dashboard utilizes a balanced **3-Column Landscape Split Layout** across the entire 1280×720 display canvas:
 
+**Updated space allocation:** the cockpit fills the screen without outer padding or gutters. On the reference 1280×720 / 160 dpi head unit, the center map region is 720×720 with 280-wide side columns. Search, recenter, heading, GPS, speed, and navigation controls float over or around the circle; they do not reserve rows above or below it. Pin/route banners are compact and appear only when needed. Wider landscape displays use their actual aspect ratio without letterboxing, and the map remains circular under uniform scaling.
+
 ```
 +-------------------------------------------------------------------------------------------------------+
 |  LEFT COLUMN (Weight: 1.0)       |      CENTER COLUMN (Aspect 1:1)       |  RIGHT COLUMN (Weight: 1.0)   |
