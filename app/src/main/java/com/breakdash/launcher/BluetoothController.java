@@ -143,6 +143,7 @@ final class BluetoothController {
         if(!scan) scanDriver="NONE";
         this.operation=operation;
         try {
+            if(FactoryBluetoothProbe.busy()) { fail(Reason.REJECTED,0,"Factory Bluetooth cleanup is still finishing · wait before starting another operation"); return false; }
             adapter=BluetoothDiagnostics.adapter(context);
             if(adapter==null) { fail(Reason.MISSING_HARDWARE,0,"Android Bluetooth adapter unavailable"); return false; }
             if(!BluetoothDiagnostics.connectAllowed(context) || scan && !BluetoothDiagnostics.scanAllowed(context)) {

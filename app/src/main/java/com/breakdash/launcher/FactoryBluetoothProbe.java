@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 final class FactoryBluetoothProbe {
     // A synchronous vendor call may ignore interrupts. Never accumulate another worker behind one that has stalled.
     private static final AtomicBoolean IN_FLIGHT=new AtomicBoolean();
+    static boolean busy() { return IN_FLIGHT.get(); }
     private final Context context;
     private final Consumer<String> completed;
     private final Handler main=new Handler(Looper.getMainLooper());

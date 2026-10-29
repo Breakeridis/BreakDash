@@ -182,6 +182,8 @@ the main thread. A synchronous vendor call may ignore interruption; late results
 are discarded, the session unbinds and requests worker shutdown, and a global
 in-flight guard prevents accumulating more workers until that call returns.
 No periodic retry, polling or always-on service is introduced.
+Android scans, pairing and BLE tests also reject a new operation while that
+factory worker is still in flight, including after its UI session was cancelled.
 
 v1.0.18 fixes the transition from Diagnostics to this dashboard check. Dialog
 dismissal callbacks update the panel stack asynchronously; the earlier immediate
@@ -332,6 +334,8 @@ Device acceptance:
     select it and explicitly test BLE. Test closing/backgrounding while the native
     start or stop RPC is pending, during discovery and while decoding a result;
     verify no repeated workers, no retained binding and no late history overwrite.
+    An Android scan/test attempted before native cleanup finishes must be refused
+    rather than overlap a still-running factory RPC.
     Send feedback even when the event contract or BLE path is unavailable.
 
 The next implementation follows the reported interfaces and transport. Do not
