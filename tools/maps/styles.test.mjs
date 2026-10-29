@@ -8,7 +8,7 @@ import {assetPath, generate, upstream} from './generate.mjs';
 const bright = upstream('bright');
 const sprites = upstream('sprite');
 function evaluate(value, zoom, properties = {}) {
-    const compiled = createExpression(value);
+    const compiled = createExpression(value, 'driving-style-contract');
     assert.equal(compiled.result, 'success', JSON.stringify(compiled.value));
     return compiled.value.evaluate({zoom}, {type: 'Point', properties});
 }
