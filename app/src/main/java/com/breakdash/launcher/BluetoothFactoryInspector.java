@@ -49,7 +49,7 @@ final class BluetoothFactoryInspector {
                             String simple=typeName.substring(typeName.lastIndexOf('.')+1);
                             if(typeName.length()>180 || !typeName.startsWith("com.nwd.") || !(typeName.endsWith("$Stub") || simple.matches("I[A-Z][A-Za-z0-9_]*"))) continue;
                             String contract=typeName.endsWith("$Stub") ? typeName.substring(0,typeName.length()-5) : typeName;
-                            if(!seen.add(contract)) continue;
+                            if(seen.contains(contract)) continue;
                             candidates++;
                             try {
                                 Class<?> type=Class.forName(contract,false,loader);
@@ -64,6 +64,7 @@ final class BluetoothFactoryInspector {
                                     for(int i=0;i<Math.min(arguments.length,12);i++) { if(i>0) out.append(", "); out.append(arguments[i].getName()); }
                                     out.append(")\n");
                                 }
+                                seen.add(contract);
                             } catch(ClassNotFoundException | LinkageError | RuntimeException error) { out.append("  Signature unavailable: ").append(error.getClass().getSimpleName()).append('\n'); }
                         }
                     } finally { dex.close(); }

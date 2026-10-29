@@ -116,7 +116,11 @@ final class BluetoothScreen {
         if(!inspectionStatus.isEmpty()) text(inspectionStatus);
         action("Refresh snapshot",this::render);
         action("Send feedback",()->{ controller.stop(Reason.USER_STOP); main.panels.report(); });
-        action("Clear Bluetooth diagnostic history",()->{ controller.stop(Reason.USER_STOP); BluetoothDiagnostics.clear(main); inspectionStatus=""; render(); });
+        action("Clear Bluetooth diagnostic history",()->{
+            controller.stop(Reason.USER_STOP);
+            if(inspection!=null) { inspection.close(); inspection=null; }
+            BluetoothDiagnostics.clear(main); inspectionStatus=""; render();
+        });
         TextView report=ui.text(BluetoothDiagnostics.collect(main),14,ui.muted); report.setTextIsSelectable(true); page.addView(report);
     }
     private void inspect() {
