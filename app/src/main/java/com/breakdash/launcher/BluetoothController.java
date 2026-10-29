@@ -133,7 +133,10 @@ final class BluetoothController {
         if(!visible || !BluetoothDiagnostics.connectAllowed(context) || adapter==null) return;
         for(FactoryDiscoveryContract.Device result:results) try {
             Device row=add(adapter.getRemoteDevice(result.address),null,false,false,result.name);
-            if(row!=null) row.factory=true;
+            if(row!=null) {
+                row.factory=true;
+                if(!FactoryDiscoveryContract.UNNAMED.equals(result.name)) row.name=result.name;
+            }
         } catch(RuntimeException ignored) {}
         notifyUi();
     }
