@@ -183,6 +183,21 @@ are discarded, the session unbinds and requests worker shutdown, and a global
 in-flight guard prevents accumulating more workers until that call returns.
 No periodic retry, polling or always-on service is introduced.
 
+v1.0.18 fixes the transition from Diagnostics to this dashboard check. Dialog
+dismissal callbacks update the panel stack asynchronously; the earlier immediate
+visibility check could return before those callbacks, leaving no saved attempt.
+The tap now immediately records WAITING_FOR_DASHBOARD, then starts exactly once
+from the resumed/empty-stack visibility callback. A three-second handoff deadline
+records DASHBOARD_UNAVAILABLE instead of silently dropping the request. Starting
+and cancellation are recorded too. Backgrounding or opening another panel clears
+pending work, so it cannot start on a later unrelated return to Home. The actual
+vendor session retains its separate eight-second deadline.
+
+A temporary dashboard notice shows preparation, checking and completion while
+this user-requested operation is active. It uses the right column, leaving map
+and navigation controls available; opening a panel hides it. Feedback carries
+bounded request/start/completion events in addition to the saved status section.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -205,6 +220,9 @@ synthetic definitions only; factory APKs and real feedback never enter CI.
 Factory-status regressions verify primitive getter allowlisting, signature
 rejection, private-data/control exclusion, exception privacy, cancellation,
 deadline precedence, exactly-once cleanup and rejection of late completions.
+Dashboard-handoff regressions reproduce delayed dismissal callbacks and a partly
+closed panel stack, check exactly-once launch, and cover cancellation, timeout,
+duplicate taps and refusal to restart when the dashboard is visited later.
 
 Device acceptance:
 
@@ -251,6 +269,11 @@ Device acceptance:
     overwrite and no automatic restart. Repeat after completion and check that
     stalled work reports busy without adding workers. Confirm factory phone,
     music, radio, maps and USB behavior remain intact on the head unit.
+12. From stacked Settings/Bluetooth panels, tap the factory status action and
+    confirm the dashboard notice progresses past preparation. Reopen Diagnostics
+    and check a new requested/starting/completed or explicit failure result; it
+    must not remain Not checked. Reopen a panel or background during handoff,
+    wait beyond three seconds, then return: no delayed automatic check should run.
 
 The next implementation follows the reported interfaces and transport. Do not
 guess vendor callback layouts, characteristic UUIDs, pairing PINs or OBD frames.

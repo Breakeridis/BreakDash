@@ -60,6 +60,7 @@ final class Panels implements AutoCloseable {
             this(title,scroll,false);
         }
         Panel(String title,boolean scroll,boolean fullScreen) {
+            main.factoryBluetoothPanelOpened();
             dialog=new Dialog(main); dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
             LinearLayout root=ui.column(); root.setPadding(ui.dp(16),ui.dp(12),ui.dp(16),ui.dp(12)); root.setBackground(ui.surface(ui.bg,ui.border,fullScreen ? 0 : 24));
             LinearLayout header=ui.row();

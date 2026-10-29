@@ -26,6 +26,7 @@ import android.widget.Toast;
 import com.breakdash.launcher.core.RadioFrequency;
 import com.breakdash.launcher.core.ThemePalette;
 import com.breakdash.launcher.core.NavigationGuidance;
+import com.breakdash.launcher.core.FactoryBluetoothLaunch;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -37,6 +38,9 @@ public final class MainActivity extends Activity {
     Prefs prefs; Ui ui; Panels panels; AppCatalog catalog; SystemTools system;
     RadioController radio; MapPortal portal;
     private FactoryBluetoothProbe factoryBluetoothProbe;
+    private final FactoryBluetoothLaunch factoryBluetoothLaunch=new FactoryBluetoothLaunch();
+    private final Runnable factoryBluetoothLaunchTimeout=this::advanceFactoryBluetoothLaunch;
+    private TextView factoryBluetoothNotice;
     List<AppCatalog.App> apps=new ArrayList<>();
     Downloads.Release release;
     private Tasks.Scope life,visible,pinnedRouteScope;
@@ -190,7 +194,11 @@ public final class MainActivity extends Activity {
             }
             cards.addView(cardRow,new LinearLayout.LayoutParams(-1,0,1));
         }
-        right.addView(cards,new LinearLayout.LayoutParams(-1,0,1)); ui.gap(right,14);
+        right.addView(cards,new LinearLayout.LayoutParams(-1,0,1));
+        factoryBluetoothNotice=ui.text("",17,ui.text); factoryBluetoothNotice.setMaxLines(3);
+        factoryBluetoothNotice.setPadding(ui.dp(8),ui.dp(6),ui.dp(8),ui.dp(6));
+        factoryBluetoothNotice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        factoryBluetoothNotice.setVisibility(View.GONE); right.addView(factoryBluetoothNotice); ui.gap(right,14);
         int utilityHeight=fontScale>1.1f ? Math.round(52+48*fontScale) : 80;
         LinearLayout utility=ui.row(); ui.weighted(utility,ui.actionTile("Settings","settings",panels::settings),utilityHeight);
         LinearLayout updateTile=ui.actionTile("Updates","updates",panels::updates); updates=(TextView)updateTile.getChildAt(1); ui.weighted(utility,updateTile,utilityHeight);
@@ -353,21 +361,73 @@ public final class MainActivity extends Activity {
             }
         }
         panels.visibilityChanged(resumed);
+        advanceFactoryBluetoothLaunch();
     }
     void checkFactoryBluetooth() {
+        if(factoryBluetoothProbe!=null || factoryBluetoothLaunch.pending()) { toast("Factory Bluetooth check is already running"); return; }
+        factoryBluetoothLaunch.request(android.os.SystemClock.elapsedRealtime());
+        BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: WAITING_FOR_DASHBOARD\nThe check was requested; waiting for panels to close.\n");
+        DiagnosticHistory.event("factory Bluetooth check requested · waiting for dashboard");
+        factoryBluetoothNotice("Preparing Bluetooth check…");
+        tasks.main.postDelayed(factoryBluetoothLaunchTimeout,FactoryBluetoothLaunch.WAIT_MS);
         panels.close();
-        if(!dashboardActive) { toast("Return to the dashboard to check factory Bluetooth"); return; }
-        if(factoryBluetoothProbe!=null) { toast("Factory Bluetooth check is already running"); return; }
-        factoryBluetoothProbe=new FactoryBluetoothProbe(this,result->{
-            factoryBluetoothProbe=null; BluetoothDiagnostics.factoryStatus(this,result);
-            if(resumed && dashboardActive) toast("Factory Bluetooth result saved · open Bluetooth Diagnostics");
-        });
-        toast("Checking factory Bluetooth · stay on the dashboard for up to 8 seconds");
-        factoryBluetoothProbe.start();
+        // OnDismiss listeners remove the panels asynchronously. Visibility callbacks start the request.
+        tasks.main.post(this::advanceFactoryBluetoothLaunch);
+    }
+    private void advanceFactoryBluetoothLaunch() {
+        FactoryBluetoothLaunch.Decision decision=factoryBluetoothLaunch.update(resumed && dashboardActive && panels.empty(),android.os.SystemClock.elapsedRealtime());
+        if(decision==FactoryBluetoothLaunch.Decision.START) {
+            tasks.main.removeCallbacks(factoryBluetoothLaunchTimeout);
+            startFactoryBluetoothCheck();
+        } else if(decision==FactoryBluetoothLaunch.Decision.EXPIRED) {
+            tasks.main.removeCallbacks(factoryBluetoothLaunchTimeout);
+            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: DASHBOARD_UNAVAILABLE\nThe requested check could not start within 3 seconds. No service binding attempted.\n");
+            DiagnosticHistory.event("factory Bluetooth check not started · dashboard unavailable");
+            factoryBluetoothNotice("Bluetooth check could not start\nResult saved in Diagnostics");
+        }
+    }
+    private void startFactoryBluetoothCheck() {
+        BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: STARTING\nDashboard visible; starting the factory status session.\n");
+        DiagnosticHistory.event("factory Bluetooth check started on dashboard");
+        factoryBluetoothNotice("Checking factory Bluetooth…\nPlease wait up to 8 seconds");
+        try {
+            factoryBluetoothProbe=new FactoryBluetoothProbe(this,result->{
+                factoryBluetoothProbe=null; BluetoothDiagnostics.factoryStatus(this,result);
+                DiagnosticHistory.event("factory Bluetooth check result saved");
+                if(resumed && dashboardActive) {
+                    factoryBluetoothNotice("Bluetooth check finished\nResult saved in Diagnostics");
+                    toast("Factory Bluetooth result saved · open Bluetooth Diagnostics");
+                }
+            });
+            factoryBluetoothProbe.start();
+        } catch(RuntimeException | LinkageError error) {
+            cancelFactoryBluetoothCheck();
+            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: START_FAILED\nCould not initialize the check. Exception details omitted.\n");
+            factoryBluetoothNotice("Bluetooth check could not start\nResult saved in Diagnostics");
+        }
+    }
+    private void factoryBluetoothNotice(String message) {
+        if(factoryBluetoothNotice!=null) { factoryBluetoothNotice.setText(message); factoryBluetoothNotice.setVisibility(View.VISIBLE); }
+    }
+    void factoryBluetoothPanelOpened() {
+        cancelPendingFactoryBluetoothCheck();
+        if(factoryBluetoothNotice!=null) factoryBluetoothNotice.setVisibility(View.GONE);
+    }
+    private void cancelPendingFactoryBluetoothCheck() {
+        if(factoryBluetoothLaunch.cancel()) {
+            tasks.main.removeCallbacks(factoryBluetoothLaunchTimeout);
+            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: CANCELLED\nThe dashboard handoff was cancelled before service binding.\n");
+            DiagnosticHistory.event("factory Bluetooth dashboard handoff cancelled");
+            if(factoryBluetoothNotice!=null) factoryBluetoothNotice.setText("Bluetooth check cancelled\nResult saved in Diagnostics");
+        }
     }
     private void cancelFactoryBluetoothCheck() {
+        cancelPendingFactoryBluetoothCheck();
         FactoryBluetoothProbe probe=factoryBluetoothProbe;
-        if(probe!=null) { factoryBluetoothProbe=null; probe.cancel(); }
+        if(probe!=null) {
+            factoryBluetoothProbe=null; probe.cancel();
+            if(factoryBluetoothNotice!=null) factoryBluetoothNotice.setText("Bluetooth check cancelled\nResult saved in Diagnostics");
+        }
     }
     private void maybeCheckUpdate() {
         String repository=prefs.get("repository",BuildConfig.GITHUB_REPOSITORY);
@@ -384,7 +444,7 @@ public final class MainActivity extends Activity {
     @Override public Object onRetainNonConfigurationInstance() { return portal.snapshot(); }
     @Override protected void onStart() { super.onStart(); portal.mapView.onStart(); if(life!=null) life.run(catalog::load,result->{ apps=result; defaults(); renderFavorites(); },error->{}); }
     @Override protected void onResume() { super.onResume(); navigationTrace.event("resume",null); resumed=true; visibilityChanged(); }
-    @Override protected void onPause() { navigationTrace.event("pause",null); resumed=false; visibilityChanged(); super.onPause(); }
+    @Override protected void onPause() { navigationTrace.event("pause",null); resumed=false; cancelFactoryBluetoothCheck(); visibilityChanged(); super.onPause(); }
     @Override protected void onStop() { navigationTrace.event("stop",null); portal.mapView.onStop(); super.onStop(); }
     @Override protected void onSaveInstanceState(Bundle state) { super.onSaveInstanceState(state); portal.mapView.onSaveInstanceState(state); }
     @Override public void onLowMemory() { super.onLowMemory(); portal.mapView.onLowMemory(); catalog.clearIcons(); }
