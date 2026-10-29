@@ -1,0 +1,38 @@
+BreakDash recommended driving maps
+
+These are modified OpenFreeMap Bright and Dark styles, downloaded 2026-10-29:
+https://tiles.openfreemap.org/styles/bright
+https://tiles.openfreemap.org/styles/dark
+Upstream project: https://github.com/hyperknot/openfreemap-styles
+
+Bright: OSM Bright GL Style, derived from Mapbox Open Styles.
+Copyright (c) 2024, MapTiler.com & OpenMapTiles contributors.
+Copyright (c) 2014, Mapbox.
+https://github.com/openmaptiles/osm-bright-gl-style
+
+Dark: Dark Matter GL Style, derived from CartoDB Basemaps, designed by
+Stamen and Paul Norman for CartoDB Inc. (original design CC BY 3.0).
+Copyright (c) 2024, MapTiler.com & OpenMapTiles contributors.
+Copyright (c) 2015, CartoDB Inc.
+https://github.com/openmaptiles/dark-matter-gl-style
+https://github.com/CartoDB/CartoDB-basemaps
+
+Style code: BSD 3-Clause. Style designs: CC BY 4.0.
+https://creativecommons.org/licenses/by/4.0/
+https://creativecommons.org/licenses/by/3.0/
+OpenFreeMap modifications: MIT, Copyright (c) 2023 Zsolt Ero.
+Full upstream copyright, conditions and disclaimers are in licenses/.
+
+BreakDash modifications: stronger road edges; 20% wider roads/casings from
+zoom 14; 20% larger street labels; fuel/car-parking POIs at zoom 15, names
+at 16; flat, subdued buildings; near-black night palette with amber major
+roads and light local roads. Night retains Dark's base, with Bright's road,
+bridge, tunnel and shield stack. No endorsement by upstream authors.
+
+Tiles, fonts and sprites remain hosted by OpenFreeMap (internet required).
+Map data: (c) OpenStreetMap contributors, ODbL
+https://www.openstreetmap.org/copyright
+Schema: (c) OpenMapTiles https://openmaptiles.org/
+Noto Sans: SIL Open Font License 1.1 https://openfontlicense.org/
+Maki POI icons: CC0 https://github.com/mapbox/maki/blob/main/LICENSE.txt
+Natural Earth: public domain https://www.naturalearthdata.com/

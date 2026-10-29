@@ -1,0 +1,8935 @@
+{
+  "version": 8,
+  "sources": {
+    "ne2_shaded": {
+      "maxzoom": 6,
+      "tileSize": 256,
+      "tiles": [
+        "https://tiles.openfreemap.org/natural_earth/ne2sr/{z}/{x}/{y}.png"
+      ],
+      "type": "raster"
+    },
+    "openmaptiles": {
+      "type": "vector",
+      "url": "https://tiles.openfreemap.org/planet"
+    }
+  },
+  "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
+  "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#080A0D"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ]
+      ],
+      "paint": {
+        "fill-antialias": false,
+        "fill-color": "#0B1926"
+      }
+    },
+    {
+      "id": "landcover_ice_shelf",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "maxzoom": 8,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "subclass"
+          ],
+          "ice_shelf"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#10151B",
+        "fill-opacity": 0.7
+      }
+    },
+    {
+      "id": "landcover_glacier",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "maxzoom": 8,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "subclass"
+          ],
+          "glacier"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#10151B",
+        "fill-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          1,
+          8,
+          0.5
+        ]
+      }
+    },
+    {
+      "id": "landuse_residential",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "maxzoom": 9,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "residential"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#10151B",
+        "fill-opacity": 0.4
+      }
+    },
+    {
+      "id": "landcover_wood",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landcover",
+      "minzoom": 10,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "wood"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#122018",
+        "fill-opacity": [
+          "interpolate",
+          [
+            "exponential",
+            0.3
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          0,
+          10,
+          0.8,
+          13,
+          0.4
+        ],
+        "fill-pattern": "wood-pattern",
+        "fill-translate": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "landuse_park",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "park"
+        ]
+      ],
+      "paint": {
+        "fill-color": "#122018"
+      }
+    },
+    {
+      "id": "waterway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "waterway",
+      "filter": [
+        "match",
+        [
+          "geometry-type"
+        ],
+        [
+          "LineString",
+          "MultiLineString"
+        ],
+        true,
+        false
+      ],
+      "paint": {
+        "line-color": "rgb(27 ,27 ,29)"
+      }
+    },
+    {
+      "id": "water_name",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "filter": [
+        "match",
+        [
+          "geometry-type"
+        ],
+        [
+          "LineString",
+          "MultiLineString"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "symbol-spacing": 500,
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "map",
+        "text-size": 12,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "hsla(0,0%,0%,0.7)",
+        "text-halo-color": "hsl(0,0%,27%)"
+      }
+    },
+    {
+      "id": "building",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "minzoom": 12,
+      "filter": [
+        "match",
+        [
+          "geometry-type"
+        ],
+        [
+          "MultiPolygon",
+          "Polygon"
+        ],
+        true,
+        false
+      ],
+      "paint": {
+        "fill-antialias": true,
+        "fill-color": "#161C23",
+        "fill-outline-color": "#202833",
+        "fill-opacity": 0.65
+      }
+    },
+    {
+      "id": "aeroway-taxiway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 12,
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "taxiway"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#181818",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.55
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          1.8,
+          20,
+          20
+        ]
+      }
+    },
+    {
+      "id": "aeroway-runway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 11,
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "runway"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "rgba(60,60,60,0.8)",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.5
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          5,
+          17,
+          55
+        ]
+      }
+    },
+    {
+      "id": "aeroway-area",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 4,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "runway",
+            "taxiway"
+          ],
+          true,
+          false
+        ]
+      ],
+      "paint": {
+        "fill-color": "#000",
+        "fill-opacity": 1
+      }
+    },
+    {
+      "id": "aeroway-runway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "aeroway",
+      "minzoom": 11,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "runway"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#000",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.5
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          4,
+          17,
+          50
+        ]
+      }
+    },
+    {
+      "id": "tunnel-service-track-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1,
+          16,
+          4,
+          20,
+          11
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-service-track-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.2,
+          16,
+          4.8,
+          20,
+          13.2
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-minor-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "minor"
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.5,
+          13,
+          1,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-minor-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "minor"
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.6,
+          13,
+          1.2,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-secondary-tertiary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          1.5,
+          20,
+          17
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          1.8,
+          20,
+          20.4
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-trunk-primary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.4,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          22
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-trunk-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.48,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          26.4
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.4,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          22
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-dasharray": [
+          0.5,
+          0.25
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.48,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          26.4
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-path-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.2,
+          20,
+          4
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-path",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.44,
+          20,
+          4.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-service-track-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15.5,
+          0,
+          16,
+          2,
+          20,
+          7.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-service-track",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15.5,
+          0,
+          16,
+          2.4,
+          20,
+          9
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-minor-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "minor"
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-minor",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "minor"
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-secondary-tertiary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          10
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          12
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-trunk-primary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-trunk-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-motorway-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "tunnel-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "tunnel-railway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          2,
+          2
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.4,
+          15,
+          0.75,
+          20,
+          2
+        ]
+      }
+    },
+    {
+      "id": "ferry",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "ferry"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          2,
+          2
+        ],
+        "line-width": 1.1
+      }
+    },
+    {
+      "id": "road_area_pier",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "pier"
+        ]
+      ],
+      "paint": {
+        "fill-antialias": true,
+        "fill-color": "#303A46",
+        "fill-outline-color": "#414C59"
+      }
+    },
+    {
+      "id": "road_pier",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "pier"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1,
+          17,
+          4
+        ]
+      }
+    },
+    {
+      "id": "highway-area",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPolygon",
+            "Polygon"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "pier"
+          ],
+          false,
+          true
+        ]
+      ],
+      "paint": {
+        "fill-antialias": false,
+        "fill-color": "#303A46",
+        "fill-opacity": 0.9,
+        "fill-outline-color": "#414C59"
+      }
+    },
+    {
+      "id": "highway-motorway-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      }
+    },
+    {
+      "id": "highway-minor-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.5,
+          13,
+          1,
+          14,
+          4,
+          20,
+          15
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-minor-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.6,
+          13,
+          1.2,
+          14,
+          4.8,
+          20,
+          18
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-secondary-tertiary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          1.5,
+          20,
+          17
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8,
+          1.8,
+          20,
+          20.4
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-primary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 5,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          8,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          8,
+          0.6,
+          9,
+          1.5,
+          20,
+          22
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          8,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          7,
+          0,
+          8,
+          0.72,
+          9,
+          1.8,
+          20,
+          26.4
+        ]
+      }
+    },
+    {
+      "id": "highway-trunk-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 5,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0,
+          6,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          22
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-trunk-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0,
+          6,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          26.4
+        ]
+      }
+    },
+    {
+      "id": "highway-motorway-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 4,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0,
+          5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0,
+          5,
+          0.4,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          22
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0,
+          5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          4,
+          0,
+          5,
+          0.48,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          26.4
+        ]
+      }
+    },
+    {
+      "id": "highway-path-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.2,
+          20,
+          4
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-path",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.44,
+          20,
+          4.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-motorway-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 12,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      }
+    },
+    {
+      "id": "highway-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      }
+    },
+    {
+      "id": "highway-minor-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-minor",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-secondary-tertiary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          8,
+          0.5,
+          20,
+          13
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          8,
+          0.6,
+          20,
+          15.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-primary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8.5,
+          0,
+          9,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          8.5,
+          0,
+          9,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-trunk-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-trunk",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "highway-motorway-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 5,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "highway-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      }
+    },
+    {
+      "id": "railway-transit",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "transit"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "tunnel"
+          ],
+          false,
+          true
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.4,
+          20,
+          1
+        ]
+      }
+    },
+    {
+      "id": "railway-transit-hatching",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "transit"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "tunnel"
+          ],
+          false,
+          true
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          0.2,
+          8
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14.5,
+          0,
+          15,
+          2,
+          20,
+          6
+        ]
+      }
+    },
+    {
+      "id": "railway-service",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ],
+        [
+          "has",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.4,
+          20,
+          1
+        ]
+      }
+    },
+    {
+      "id": "railway-service-hatching",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ],
+        [
+          "has",
+          "service"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          0.2,
+          8
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14.5,
+          0,
+          15,
+          2,
+          20,
+          6
+        ]
+      }
+    },
+    {
+      "id": "railway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!",
+          [
+            "has",
+            "service"
+          ]
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.4,
+          15,
+          0.75,
+          20,
+          2
+        ]
+      }
+    },
+    {
+      "id": "railway-hatching",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "!",
+          [
+            "has",
+            "service"
+          ]
+        ],
+        [
+          "match",
+          [
+            "get",
+            "brunnel"
+          ],
+          [
+            "bridge",
+            "tunnel"
+          ],
+          false,
+          true
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          0.2,
+          8
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14.5,
+          0,
+          15,
+          3,
+          20,
+          8
+        ]
+      }
+    },
+    {
+      "id": "bridge-motorway-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          19
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-motorway-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          22.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-link-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1,
+          13,
+          3,
+          14,
+          4,
+          20,
+          19
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-link-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          1.2,
+          13,
+          3.6,
+          14,
+          4.8,
+          20,
+          22.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-secondary-tertiary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.4,
+          7,
+          0.6,
+          8,
+          1.5,
+          20,
+          21
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-secondary-tertiary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.48,
+          7,
+          0.72,
+          8,
+          1.8,
+          20,
+          25.2
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-trunk-primary-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.4,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          26
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-trunk-primary-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.48,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          31.2
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-motorway-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.4,
+          6,
+          0.6,
+          7,
+          1.5,
+          20,
+          26
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-motorway-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#665334",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          0.48,
+          6,
+          0.72,
+          7,
+          1.8,
+          20,
+          31.2
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-minor-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.5,
+          13,
+          1,
+          14,
+          6,
+          20,
+          24
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-minor-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "butt",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#303A46",
+        "line-opacity": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0,
+          12.5,
+          1
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12,
+          0.6,
+          13,
+          1.2,
+          14,
+          7.2,
+          20,
+          28.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-path-casing-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#303A46",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.2,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-path-casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#303A46",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.44,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-path-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.2,
+          20,
+          4
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-path",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "path"
+        ]
+      ],
+      "paint": {
+        "line-color": "#59626D",
+        "line-dasharray": [
+          1.5,
+          0.75
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          1.44,
+          20,
+          4.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-motorway-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-motorway-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-link-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.5,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-link",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "secondary",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          12.5,
+          0,
+          13,
+          1.8,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-minor-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          2.5,
+          20,
+          11.5
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-minor",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#939DA8",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          13.5,
+          0,
+          14,
+          3,
+          20,
+          13.8
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-secondary-tertiary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          8,
+          0.5,
+          20,
+          13
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-secondary-tertiary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "secondary",
+            "tertiary"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#B9A074",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          8,
+          0.6,
+          20,
+          15.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-trunk-primary-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-trunk-primary",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "primary",
+            "trunk"
+          ],
+          true,
+          false
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#D2A45F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-motorway-overview",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.5,
+          20,
+          18
+        ]
+      },
+      "maxzoom": 14
+    },
+    {
+      "id": "bridge-motorway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "motorway"
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "ramp"
+          ],
+          1
+        ]
+      ],
+      "layout": {
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#E6B55F",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.2
+          ],
+          [
+            "zoom"
+          ],
+          6.5,
+          0,
+          7,
+          0.6,
+          20,
+          21.6
+        ]
+      },
+      "minzoom": 14
+    },
+    {
+      "id": "bridge-railway",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.4,
+          15,
+          0.75,
+          20,
+          2
+        ]
+      }
+    },
+    {
+      "id": "bridge-railway-hatching",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "brunnel"
+          ],
+          "bridge"
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "rail"
+        ]
+      ],
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          0.2,
+          8
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          14.5,
+          0,
+          15,
+          3,
+          20,
+          8
+        ]
+      }
+    },
+    {
+      "id": "cablecar",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": [
+        "==",
+        [
+          "get",
+          "subclass"
+        ],
+        "cable_car"
+      ],
+      "layout": {
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#414C59",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          1,
+          19,
+          2.5
+        ]
+      }
+    },
+    {
+      "id": "cablecar-dash",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 13,
+      "filter": [
+        "==",
+        [
+          "get",
+          "subclass"
+        ],
+        "cable_car"
+      ],
+      "layout": {
+        "line-cap": "round"
+      },
+      "paint": {
+        "line-color": "#414C59",
+        "line-dasharray": [
+          2,
+          3
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          11,
+          3,
+          19,
+          5.5
+        ]
+      }
+    },
+    {
+      "id": "road_oneway",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "oneway"
+          ],
+          1
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "motorway",
+            "primary",
+            "secondary",
+            "service",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "icon-image": "oneway",
+        "icon-padding": 2,
+        "icon-rotate": 90,
+        "icon-rotation-alignment": "map",
+        "icon-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          0.5,
+          19,
+          1
+        ],
+        "symbol-placement": "line",
+        "symbol-spacing": 75,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.5
+      }
+    },
+    {
+      "id": "road_oneway_opposite",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "oneway"
+          ],
+          -1
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "motorway",
+            "primary",
+            "secondary",
+            "service",
+            "tertiary",
+            "trunk"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "icon-image": "oneway",
+        "icon-padding": 2,
+        "icon-rotate": -90,
+        "icon-rotation-alignment": "map",
+        "icon-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          15,
+          0.5,
+          19,
+          1
+        ],
+        "symbol-placement": "line",
+        "symbol-spacing": 75,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.5
+      }
+    },
+    {
+      "id": "driving-fuel-parking",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "poi",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "Point",
+            "MultiPoint"
+          ],
+          true,
+          false
+        ],
+        [
+          "any",
+          [
+            "==",
+            [
+              "get",
+              "subclass"
+            ],
+            "fuel"
+          ],
+          [
+            "all",
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "fuel"
+            ],
+            [
+              "!",
+              [
+                "has",
+                "subclass"
+              ]
+            ]
+          ],
+          [
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "parking",
+              "parking_garage"
+            ],
+            true,
+            false
+          ],
+          [
+            "match",
+            [
+              "get",
+              "subclass"
+            ],
+            [
+              "parking",
+              "parking_garage"
+            ],
+            true,
+            false
+          ]
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "case",
+          [
+            "any",
+            [
+              "==",
+              [
+                "get",
+                "subclass"
+              ],
+              "fuel"
+            ],
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "fuel"
+            ]
+          ],
+          "fuel",
+          "parking"
+        ],
+        "icon-size": 1.2,
+        "icon-padding": 4,
+        "icon-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "text-optional": true,
+        "text-field": [
+          "step",
+          [
+            "zoom"
+          ],
+          "",
+          16,
+          [
+            "coalesce",
+            [
+              "get",
+              "name"
+            ],
+            [
+              "get",
+              "name:latin"
+            ],
+            [
+              "get",
+              "name_en"
+            ],
+            ""
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 14,
+        "text-anchor": "top",
+        "text-offset": [
+          0,
+          1
+        ],
+        "text-max-width": 9,
+        "text-padding": 3
+      },
+      "paint": {
+        "text-color": "#E1E6EC",
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "highway-name-path",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 15.5,
+      "filter": [
+        "==",
+        [
+          "get",
+          "class"
+        ],
+        "path"
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            " ",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "map",
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          14.4,
+          14,
+          15.6
+        ],
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#F0E9DB",
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1.5,
+        "text-halo-blur": 0.25
+      }
+    },
+    {
+      "id": "highway-name-minor",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 15,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "minor",
+            "service",
+            "track"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            " ",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "map",
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          14.4,
+          14,
+          15.6
+        ],
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#F0E9DB",
+        "text-halo-blur": 0.25,
+        "text-halo-width": 1.5,
+        "text-halo-color": "#080A0D"
+      }
+    },
+    {
+      "id": "highway-name-major",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 12.2,
+      "filter": [
+        "match",
+        [
+          "get",
+          "class"
+        ],
+        [
+          "primary",
+          "secondary",
+          "tertiary",
+          "trunk"
+        ],
+        true,
+        false
+      ],
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            " ",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "map",
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          13,
+          14.4,
+          14,
+          15.6
+        ],
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#F0E9DB",
+        "text-halo-blur": 0.25,
+        "text-halo-width": 1.5,
+        "text-halo-color": "#080A0D"
+      }
+    },
+    {
+      "id": "highway-shield-non-us",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 8,
+      "filter": [
+        "all",
+        [
+          "<=",
+          [
+            "get",
+            "ref_length"
+          ],
+          6
+        ],
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "network"
+          ],
+          [
+            "us-highway",
+            "us-interstate",
+            "us-state"
+          ],
+          false,
+          true
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "concat",
+          "road_",
+          [
+            "get",
+            "ref_length"
+          ]
+        ],
+        "icon-rotation-alignment": "viewport",
+        "icon-size": 1,
+        "symbol-placement": [
+          "step",
+          [
+            "zoom"
+          ],
+          "point",
+          11,
+          "line"
+        ],
+        "symbol-spacing": 200,
+        "text-field": [
+          "to-string",
+          [
+            "get",
+            "ref"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "viewport",
+        "text-size": 10,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {}
+    },
+    {
+      "id": "highway-shield-us-interstate",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 7,
+      "filter": [
+        "all",
+        [
+          "<=",
+          [
+            "get",
+            "ref_length"
+          ],
+          6
+        ],
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "network"
+          ],
+          [
+            "us-interstate"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "concat",
+          [
+            "get",
+            "network"
+          ],
+          "_",
+          [
+            "get",
+            "ref_length"
+          ]
+        ],
+        "icon-rotation-alignment": "viewport",
+        "icon-size": 1,
+        "symbol-placement": [
+          "step",
+          [
+            "zoom"
+          ],
+          "point",
+          7,
+          "line",
+          8,
+          "line"
+        ],
+        "symbol-spacing": 200,
+        "text-field": [
+          "to-string",
+          [
+            "get",
+            "ref"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "viewport",
+        "text-size": 10,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {}
+    },
+    {
+      "id": "road_shield_us",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 9,
+      "filter": [
+        "all",
+        [
+          "<=",
+          [
+            "get",
+            "ref_length"
+          ],
+          6
+        ],
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "LineString",
+            "MultiLineString"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "network"
+          ],
+          [
+            "us-highway",
+            "us-state"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "concat",
+          [
+            "get",
+            "network"
+          ],
+          "_",
+          [
+            "get",
+            "ref_length"
+          ]
+        ],
+        "icon-rotation-alignment": "viewport",
+        "icon-size": 1,
+        "symbol-placement": [
+          "step",
+          [
+            "zoom"
+          ],
+          "point",
+          11,
+          "line"
+        ],
+        "symbol-spacing": 200,
+        "text-field": [
+          "to-string",
+          [
+            "get",
+            "ref"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-rotation-alignment": "viewport",
+        "text-size": 10,
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {}
+    },
+    {
+      "id": "boundary_state",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "filter": [
+        "==",
+        [
+          "get",
+          "admin_level"
+        ],
+        4
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-blur": 0.4,
+        "line-color": "hsl(0,0%,21%)",
+        "line-dasharray": [
+          2,
+          2
+        ],
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.3
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          1,
+          22,
+          15
+        ]
+      }
+    },
+    {
+      "id": "boundary_country_z0-4",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "maxzoom": 5,
+      "filter": [
+        "all",
+        [
+          "==",
+          [
+            "get",
+            "admin_level"
+          ],
+          2
+        ],
+        [
+          "!",
+          [
+            "has",
+            "claimed_by"
+          ]
+        ]
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-blur": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          0.4,
+          22,
+          4
+        ],
+        "line-color": "hsl(0,0%,23%)",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.1
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          1,
+          22,
+          20
+        ]
+      }
+    },
+    {
+      "id": "boundary_country_z5-",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "boundary",
+      "minzoom": 5,
+      "filter": [
+        "==",
+        [
+          "get",
+          "admin_level"
+        ],
+        2
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-blur": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          0.4,
+          22,
+          4
+        ],
+        "line-color": "hsl(0,0%,23%)",
+        "line-opacity": 1,
+        "line-width": [
+          "interpolate",
+          [
+            "exponential",
+            1.1
+          ],
+          [
+            "zoom"
+          ],
+          3,
+          1,
+          22,
+          20
+        ]
+      }
+    },
+    {
+      "id": "place_other",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "hamlet",
+            "isolated_dwelling",
+            "neighbourhood"
+          ],
+          true,
+          false
+        ]
+      ],
+      "layout": {
+        "text-anchor": "center",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "center",
+        "text-offset": [
+          0.5,
+          0
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_suburb",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 15,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "suburb"
+        ]
+      ],
+      "layout": {
+        "text-anchor": "center",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "center",
+        "text-offset": [
+          0.5,
+          0
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_village",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "village"
+        ]
+      ],
+      "layout": {
+        "icon-size": 0.4,
+        "text-anchor": "left",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "left",
+        "text-offset": [
+          0.5,
+          0.2
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.7,
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_town",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 15,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "town"
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "step",
+          [
+            "zoom"
+          ],
+          "circle_11",
+          9,
+          ""
+        ],
+        "icon-size": 0.4,
+        "text-anchor": [
+          "step",
+          [
+            "zoom"
+          ],
+          "left",
+          8,
+          "center"
+        ],
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "left",
+        "text-offset": [
+          0.5,
+          0.2
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.7,
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_city",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 14,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "city"
+        ],
+        [
+          ">",
+          [
+            "get",
+            "rank"
+          ],
+          3
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "step",
+          [
+            "zoom"
+          ],
+          "circle_11",
+          9,
+          ""
+        ],
+        "icon-size": 0.4,
+        "text-anchor": [
+          "step",
+          [
+            "zoom"
+          ],
+          "left",
+          8,
+          "center"
+        ],
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "left",
+        "text-offset": [
+          0.5,
+          0.2
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.7,
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_city_large",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 12,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "<=",
+          [
+            "get",
+            "rank"
+          ],
+          3
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "city"
+        ]
+      ],
+      "layout": {
+        "icon-image": [
+          "step",
+          [
+            "zoom"
+          ],
+          "circle_11",
+          9,
+          ""
+        ],
+        "icon-size": 0.4,
+        "text-anchor": [
+          "step",
+          [
+            "zoom"
+          ],
+          "left",
+          8,
+          "center"
+        ],
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-justify": "left",
+        "text-offset": [
+          0.5,
+          0.2
+        ],
+        "text-size": 14,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "icon-opacity": 0.7,
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_state",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 12,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "state"
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 10,
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-blur": 1,
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1
+      }
+    },
+    {
+      "id": "place_country_other",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 8,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "country"
+        ],
+        [
+          "!",
+          [
+            "has",
+            "iso_a2"
+          ]
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          9,
+          1,
+          11
+        ],
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1.4
+      }
+    },
+    {
+      "id": "place_country_minor",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 8,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "country"
+        ],
+        [
+          ">=",
+          [
+            "get",
+            "rank"
+          ],
+          2
+        ],
+        [
+          "has",
+          "iso_a2"
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          10,
+          6,
+          12
+        ],
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1.4
+      }
+    },
+    {
+      "id": "place_country_major",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "maxzoom": 6,
+      "filter": [
+        "all",
+        [
+          "match",
+          [
+            "geometry-type"
+          ],
+          [
+            "MultiPoint",
+            "Point"
+          ],
+          true,
+          false
+        ],
+        [
+          "<=",
+          [
+            "get",
+            "rank"
+          ],
+          1
+        ],
+        [
+          "==",
+          [
+            "get",
+            "class"
+          ],
+          "country"
+        ],
+        [
+          "has",
+          "iso_a2"
+        ]
+      ],
+      "layout": {
+        "text-anchor": "center",
+        "text-field": [
+          "case",
+          [
+            "has",
+            "name:nonlatin"
+          ],
+          [
+            "concat",
+            [
+              "get",
+              "name:latin"
+            ],
+            "\n",
+            [
+              "get",
+              "name:nonlatin"
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name_en"
+            ],
+            [
+              "get",
+              "name"
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "exponential",
+            1.4
+          ],
+          [
+            "zoom"
+          ],
+          0,
+          10,
+          3,
+          12,
+          4,
+          14
+        ],
+        "text-transform": "uppercase",
+        "icon-allow-overlap": false,
+        "text-allow-overlap": false,
+        "icon-ignore-placement": false,
+        "text-ignore-placement": false
+      },
+      "paint": {
+        "text-color": "#C2CBD5",
+        "text-halo-color": "#080A0D",
+        "text-halo-width": 1.4
+      }
+    }
+  ],
+  "name": "BreakDash driving night",
+  "metadata": {
+    "breakdash:upstream": "OpenFreeMap Dark / Dark Matter, with Bright road hierarchy",
+    "breakdash:notice": "See maps/NOTICE.txt and maps/licenses/ in this APK",
+    "breakdash:revision": 1
+  }
+}

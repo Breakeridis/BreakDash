@@ -55,16 +55,18 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private final Consumer<String> status;
     private final float density;
     private boolean active, light, destroyed;
+    private long styleGeneration;
     private ThemePalette palette=new ThemePalette(false);
     private int background=palette.background;
     private Location lastFix;
-    private final VehicleHeading vehicleHeading = new VehicleHeading();
-    private final MapTracking tracking = new MapTracking();
+    private VehicleHeading vehicleHeading = new VehicleHeading();
+    private MapTracking tracking = new MapTracking();
     private final VehicleMotion motion = new VehicleMotion();
     private CameraPosition cameraFrom,cameraTo;
     private long cameraStarted;
     private final Runnable motionFrame=this::animateFrame;
     private Navigation.Place selection;
+    private CameraPosition restoredCamera;
     private final Runnable finishPreview = () -> { if (active) renderFix(); };
     Navigation.Route route;
 
@@ -77,12 +79,15 @@ final class MapPortal extends FrameLayout implements LocationListener {
         mapView = new MapView(activity, new MapLibreMapOptions().textureMode(false).compassEnabled(false).rotateGesturesEnabled(true)
                 .scrollGesturesEnabled(true).zoomGesturesEnabled(true).tiltGesturesEnabled(false));
         addView(mapView, new LayoutParams(-1,-1)); mapView.onCreate(saved); mapView.setMaximumFps(20);
-        mapView.addOnDidFailLoadingMapListener(error -> status.accept("Map unavailable · check internet"));
+        mapView.addOnDidFailLoadingMapListener(error -> {
+            if (!destroyed && active && prefs.data.getBoolean("online_maps",false)) status.accept("Map unavailable · check internet");
+        });
         // Mask outside the circle without a TextureView or extra offscreen framebuffer.
         addView(new Ring(activity), new LayoutParams(-1,-1));
         mapView.getMapAsync(ready -> {
             if (destroyed) return;
             map = ready; map.setPrefetchZoomDelta(0); map.setTileCacheEnabled(false);
+            if (restoredCamera!=null) map.moveCamera(CameraUpdateFactory.newCameraPosition(restoredCamera));
             map.getUiSettings().setCompassEnabled(false); map.getUiSettings().setLogoEnabled(false); map.getUiSettings().setAttributionEnabled(false);
             map.addOnCameraMoveStartedListener(reason -> {
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
@@ -104,12 +109,37 @@ final class MapPortal extends FrameLayout implements LocationListener {
         getChildAt(1).invalidate(); if (map != null) applyStyle();
     }
     void reloadOnlineChoice() { if (map != null) applyStyle(); }
+    // Retain only data across theme recreation, never an Activity, View or SDK map.
+    static final class Snapshot {
+        final Navigation.Route route;
+        final Navigation.Place selection;
+        final Location fix;
+        final VehicleHeading heading;
+        final MapTracking tracking;
+        final CameraPosition camera;
+        Snapshot(MapPortal portal) {
+            route=portal.route; selection=portal.selection;
+            fix=portal.lastFix==null ? null : new Location(portal.lastFix);
+            heading=portal.vehicleHeading; tracking=portal.tracking;
+            camera=portal.map==null ? portal.restoredCamera : portal.map.getCameraPosition();
+        }
+    }
+    Snapshot snapshot() { return new Snapshot(this); }
+    void restore(Snapshot value) {
+        if(prefs.data.getBoolean("online_maps",false)) { route=value.route; selection=value.selection; }
+        lastFix=value.fix; vehicleHeading=value.heading; tracking=value.tracking; restoredCamera=value.camera;
+        if(lastFix!=null) motion.target(lastFix.getLatitude(),lastFix.getLongitude(),heading(),SystemClock.elapsedRealtime(),true);
+        if(map!=null && restoredCamera!=null) map.moveCamera(CameraUpdateFactory.newCameraPosition(restoredCamera));
+        renderRoute(); renderSelection(); renderFix();
+    }
     private void applyStyle() {
+        final long generation=++styleGeneration;
+        removeCallbacks(motionFrame); cameraTo=null;
         Style.Builder builder = new Style.Builder();
-        if (prefs.data.getBoolean("online_maps",false)) builder.fromUri(prefs.get(light ? "map_day" : "map_night", light ? "https://tiles.openfreemap.org/styles/positron" : "https://tiles.openfreemap.org/styles/dark"));
+        if (prefs.data.getBoolean("online_maps",false)) builder.fromUri(prefs.mapStyle(light));
         else builder.fromJson("{\"version\":8,\"sources\":{},\"layers\":[{\"id\":\"background\",\"type\":\"background\",\"paint\":{\"background-color\":\"" + color(palette.surface) + "\"}}]}");
         map.setStyle(builder, style -> {
-            if (destroyed) return;
+            if (destroyed || generation!=styleGeneration || style!=map.getStyle()) return;
             style.addSource(new GeoJsonSource("breakdash-route", empty()));
             style.addLayer(new LineLayer("breakdash-route-halo", "breakdash-route").withProperties(PropertyFactory.lineColor(color(palette.background)),PropertyFactory.lineWidth(10f)));
             style.addLayer(new LineLayer("breakdash-route-line", "breakdash-route").withProperties(PropertyFactory.lineColor(color(palette.navigation)),PropertyFactory.lineWidth(5f)));
@@ -125,6 +155,8 @@ final class MapPortal extends FrameLayout implements LocationListener {
                     PropertyFactory.iconImage("breakdash-arrow"),PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true),
                     PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT)));
             renderRoute(); renderSelection(); renderFix();
+            // Hidden dashboards do not animate, but still restore the latest measured vehicle.
+            if (!active) drawMotion(SystemClock.elapsedRealtime());
         });
     }
     private static String color(int value) { return String.format(Locale.ROOT,"#%06X",value & 0xFFFFFF); }
@@ -274,7 +306,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
         if (route==null) { line.setGeoJson(empty()); pin.setGeoJson(empty()); }
         else { line.setGeoJson(LineString.fromLngLats(route.geometry)); pin.setGeoJson(Point.fromLngLat(route.destination.lon,route.destination.lat)); }
     }
-    void destroy() { removeCallbacks(finishPreview); active(false); destroyed=true; mapView.onDestroy(); }
+    void destroy() { removeCallbacks(finishPreview); active(false); destroyed=true; ++styleGeneration; mapView.onDestroy(); }
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         if(event.getActionMasked()==MotionEvent.ACTION_DOWN) {
             float dx=event.getX()-getWidth()/2f,dy=event.getY()-getHeight()/2f,radius=mapRadius();

@@ -1,0 +1,12 @@
+{
+  "name": "breakdash-map-style-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node generate.mjs",
+    "test": "node --test styles.test.mjs"
+  },
+  "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "26.5.0"
+  }
+}

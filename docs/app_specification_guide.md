@@ -51,6 +51,7 @@ The centerpiece of the cockpit is a circular masked viewport that combines navig
 
 #### Core Sub-Functions:
 1. **Live Moving Road Map**:
+   - [Recommended driving maps](driving-maps.md) use bundled Bright day and Dark night derivatives, with stronger road contrast, larger street names, and fuel/car-parking markers. Blank advanced style overrides select recommended; resetting them preserves consent and search/router settings. Tiles, fonts and icons remain online through OpenFreeMap.
    - Renders OpenStreetMap vector tiles centered dynamically on the vehicle's GPS position.
    - Auto-rotates according to true GPS bearing ("Heading-Up" orientation) so the road ahead is always pointing upward.
    - While navigating, follows the car with a 45° tilted perspective, a closer road zoom, and a slightly lowered vehicle position to reveal more road ahead. A flat route overview appears briefly first. Smooth transitions connect GPS updates; no extra orientation sensor or background tracking service is used.

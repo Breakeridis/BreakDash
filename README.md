@@ -41,7 +41,9 @@ The CPU/RAM sampler runs only while **Settings → Device → Device health** is
 
 GPS speed and heading work without online services. Map connections are **off by default**. The on-device Connect screen lists the providers and explains the location/search information involved before enabling requests.
 
-Defaults are OpenFreeMap map styles, Photon address search, and OSRM driving routes. Public search/routing services have usage limits and no availability guarantee. Address autocomplete waits 700 ms, requires three characters, suppresses stale results, and allows one request in flight. Provider URLs can be changed in **Settings → Maps → Map providers**; changing a provider disconnects maps until you choose to reconnect.
+Defaults are bundled driving styles based on OpenFreeMap Bright by day and Dark by night, Photon address search, and OSRM driving routes. Roads and street names are larger at driving zooms, with fuel and car-parking markers. Tiles, fonts and icons still load from OpenFreeMap. Blank advanced style URLs mean recommended; **Use recommended maps** clears only the day/night overrides, preserving consent, navigation and search/router settings. Old default URLs migrate automatically; custom HTTPS styles retain their own appearance. See [driving map design and device checks](docs/driving-maps.md).
+
+Public search/routing services have usage limits and no availability guarantee. Address autocomplete waits 700 ms, requires three characters, suppresses stale results, and allows one request in flight. Provider URLs can be changed in **Settings → Maps → Map providers**; saving changed providers disconnects maps until you choose to reconnect.
 
 Map credits and links remain available at the map's lower right. These are online maps, with a small SDK cache, rather than an offline navigation package.
 

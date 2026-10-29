@@ -149,7 +149,7 @@ final class Panels implements AutoCloseable {
         fullButton(panel.body,"Keep GPS only",panel::dismiss);
         fullButton(panel.body,"Provider details",()->{
             Panel details=new Panel("Map providers",true,true);
-            explain(details.body,"Map (day): "+main.prefs.get("map_day","https://tiles.openfreemap.org/styles/positron")+"\nMap (night): "+main.prefs.get("map_night","https://tiles.openfreemap.org/styles/dark")+"\nSearch: "+main.prefs.get("geocoder","https://photon.komoot.io/api/")+"\nRoutes: "+main.prefs.get("router","https://router.project-osrm.org"));
+            explain(details.body,"Map (day): "+mapDescription(true)+"\nMap (night): "+mapDescription(false)+"\nSearch: "+main.prefs.get("geocoder","https://photon.komoot.io/api/")+"\nRoutes: "+main.prefs.get("router","https://router.project-osrm.org"));
             explain(details.body,"Styles can reference additional tile, font and image hosts. These services do not provide offline navigation. Disconnect at any time in Settings → Maps.");
         });
     }
@@ -158,6 +158,30 @@ final class Panels implements AutoCloseable {
         explain(panel.body,"Map rendering: MapLibre Native\nMap tiles and styles: OpenFreeMap / OpenMapTiles\nMap data © OpenStreetMap contributors (ODbL)\nAddress search: Photon / Komoot\nDriving routes: OSRM");
         fullButton(panel.body,"OpenStreetMap copyright & license",()->external("https://www.openstreetmap.org/copyright"));
         fullButton(panel.body,"MapLibre attribution & feedback",()->external("https://maplibre.org/"));
+        fullButton(panel.body,"OpenMapTiles",()->external("https://openmaptiles.org/"));
+        explain(panel.body,"Recommended day map: OpenFreeMap Bright, derived from OSM Bright / Mapbox Open Styles. Recommended night map: OpenFreeMap Dark / Dark Matter, derived from CartoDB Basemaps by Stamen and Paul Norman, with Bright roads. BreakDash changes road contrast, widths, labels, buildings and POIs. Style code: BSD 3-Clause; design: CC BY 4.0 (CartoDB original: CC BY 3.0). OpenFreeMap modifications: MIT.");
+        fullButton(panel.body,"Bundled map style licences",this::mapLicences);
+        fullButton(panel.body,"OpenFreeMap style sources",()->external("https://github.com/hyperknot/openfreemap-styles"));
+        fullButton(panel.body,"Style design licence (CC BY 4.0)",()->external("https://creativecommons.org/licenses/by/4.0/"));
+    }
+    private String mapDescription(boolean light) {
+        String custom=main.prefs.mapOverride(light);
+        return custom.isEmpty() ? "Recommended "+(light ? "Bright day" : "Dark night")+" · tiles, fonts and icons from OpenFreeMap" : custom;
+    }
+    private void recommendedMaps() {
+        main.prefs.recommendedMaps(); main.portal.reloadOnlineChoice(); main.toast("Recommended maps selected");
+    }
+    private void mapLicences() {
+        Panel panel=new Panel("Map style licences",true,true);
+        try {
+            for(String name:new String[]{"NOTICE.txt","licenses/OpenFreeMap.md","licenses/Bright.md","licenses/Dark.md"}) {
+                StringBuilder text=new StringBuilder();
+                try(java.io.BufferedReader reader=new java.io.BufferedReader(new java.io.InputStreamReader(main.getAssets().open("maps/"+name),java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line; while((line=reader.readLine())!=null) text.append(line).append('\n');
+                }
+                explain(panel.body,text.toString());
+            }
+        } catch(java.io.IOException error) { panel.message("Map style licences unavailable"); }
     }
     void search() {
         if(!main.prefs.data.getBoolean("online_maps",false)) { onlineMaps(); return; }
@@ -225,6 +249,8 @@ final class Panels implements AutoCloseable {
                             main.prefs.data.edit().putBoolean("online_maps",false).apply(); main.clearNavigation(); main.portal.reloadOnlineChoice(); panel.revealed.run();
                         } else { panel.revealed.run(); onlineMaps(); }
                     });
+                    explain(page,"Recommended: Bright by day, Dark by night. Fuel and car parking appear on nearby streets. Internet is still required.");
+                    fullButton(page,"Use recommended maps",this::recommendedMaps);
                     compactLink(page,"Map providers  ›",()->connections("maps")); break;
                 case 2:
                     appsSettings(panel,page); break;
@@ -501,20 +527,25 @@ final class Panels implements AutoCloseable {
     private void connections(String section) {
         Panel panel=new Panel(section.equals("maps") ? "Map providers" : section.equals("updates") ? "Update source" : "Report setup",true,true);
         if(section.equals("reports")) explain(panel.body,"Your HTTPS receiver and RSA public key. Keep private keys on your server.");
+        if(section.equals("maps")) explain(panel.body,"Advanced style overrides are optional. Leave blank for recommended maps. Custom HTTPS styles keep their own appearance. Changing providers requires reconnecting online maps.");
         Map<String,EditText> fields=new LinkedHashMap<>();
         String[][] definitions=section.equals("updates") ? new String[][]{
                 {"repository","GitHub owner/repository",BuildConfig.GITHUB_REPOSITORY}} : section.equals("reports") ? new String[][]{
                 {"diagnostics_url","HTTPS endpoint",BuildConfig.DIAGNOSTICS_URL},
                 {"diagnostics_key","RSA public key (PEM)",BuildConfig.DIAGNOSTICS_PUBLIC_KEY}} : new String[][]{
-                {"map_day","Day map style URL","https://tiles.openfreemap.org/styles/positron"},
-                {"map_night","Night map style URL","https://tiles.openfreemap.org/styles/dark"},
+                {"map_day","Day map style URL (optional)",""},
+                {"map_night","Night map style URL (optional)",""},
                 {"geocoder","Photon search endpoint","https://photon.komoot.io/api/"},
                 {"router","OSRM server base URL","https://router.project-osrm.org"}};
         for(String[] definition:definitions) {
-            ui.heading(panel.body,definition[1].toUpperCase(Locale.ROOT)); EditText field=ui.input(definition[1]); field.setText(main.prefs.get(definition[0],definition[2]));
+            ui.heading(panel.body,definition[1].toUpperCase(Locale.ROOT)); EditText field=ui.input(definition[1]);
+            field.setText(definition[0].startsWith("map_") ? main.prefs.mapOverride(definition[0].equals("map_day")) : main.prefs.get(definition[0],definition[2]));
             if(definition[0].equals("diagnostics_key")) { field.setSingleLine(false); field.setMinLines(3); field.setMaxLines(6); }
             panel.body.addView(field); fields.put(definition[0],field);
         }
+        if(section.equals("maps")) fullButton(panel.body,"Use recommended maps",()->{
+            recommendedMaps(); fields.get("map_day").setText(""); fields.get("map_night").setText("");
+        });
         fullButton(panel.body,"Save",()->{
             try {
                 String repository=fields.containsKey("repository") ? fields.get("repository").getText().toString().trim() : "";

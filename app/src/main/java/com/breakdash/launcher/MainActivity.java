@@ -67,6 +67,8 @@ public final class MainActivity extends Activity {
         immersive();
         radio=new RadioController(this,tasks,ignored->renderRadio(),this::toast);
         buildDashboard(state);
+        Object retained=getLastNonConfigurationInstance();
+        if(retained instanceof MapPortal.Snapshot) { portal.restore((MapPortal.Snapshot)retained); renderLocation(); }
         life.run(()->{ Downloads.prune(this); return true; },ignored->{},error->{});
     }
     private void immersive() {
@@ -361,6 +363,7 @@ public final class MainActivity extends Activity {
     void updateBadge() { if(updates!=null) updates.setText(release!=null && release.newer ? "Updates ●" : "Updates"); }
     void toast(String message) { if(message!=null && !isFinishing() && !isDestroyed()) Toast.makeText(this,message,Toast.LENGTH_LONG).show(); }
     void recreateTheme() { recreate(); }
+    @Override public Object onRetainNonConfigurationInstance() { return portal.snapshot(); }
     @Override protected void onStart() { super.onStart(); portal.mapView.onStart(); if(life!=null) life.run(catalog::load,result->{ apps=result; defaults(); renderFavorites(); },error->{}); }
     @Override protected void onResume() { super.onResume(); navigationTrace.event("resume",null); resumed=true; visibilityChanged(); }
     @Override protected void onPause() { navigationTrace.event("pause",null); resumed=false; visibilityChanged(); super.onPause(); }
