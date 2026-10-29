@@ -34,8 +34,8 @@ public final class FactoryDiscoveryContract {
         start=method(feature,"startSearchDevice_BC",boolean.class); stop=method(feature,"stopSearchDevice_BC",boolean.class);
         getName=method(deviceType,"getName",String.class); getAddress=method(deviceType,"getAddress",String.class);
         Set<String> selected=new LinkedHashSet<>(); StringBuilder out=new StringBuilder();
-        Field[] fields=definitions.getDeclaredFields(); Arrays.sort(fields,Comparator.comparing(Field::getName));
-        for(Field field:fields) {
+        Field[] definitionFields=definitions.getDeclaredFields(); Arrays.sort(definitionFields,Comparator.comparing(Field::getName));
+        for(Field field:definitionFields) {
             String symbol=field.getName(); int flags=field.getModifiers();
             if(field.getType()!=String.class || !Modifier.isPublic(flags) || !Modifier.isStatic(flags) || !Modifier.isFinal(flags)
                     || !symbol.matches("[A-Z][A-Z0-9_]{0,99}") || !symbol.contains("ACTION")
@@ -53,7 +53,7 @@ public final class FactoryDiscoveryContract {
         }
         if(selected.isEmpty()) {
             out.append("No recognized discovery action values. Public action symbols (names only):\n");
-            for(Field field:fields) if(out.length()<1200 && field.getType()==String.class && Modifier.isPublic(field.getModifiers()) && Modifier.isStatic(field.getModifiers()) && field.getName().contains("ACTION")) out.append(field.getName()).append('\n');
+            for(Field field:definitionFields) if(out.length()<1200 && field.getType()==String.class && Modifier.isPublic(field.getModifiers()) && Modifier.isStatic(field.getModifiers()) && field.getName().contains("ACTION")) out.append(field.getName()).append('\n');
         }
         fields=new FactoryDiscoveryFields(definitions);
         actions=new ArrayList<>(selected); schema=out+fields.schema;
