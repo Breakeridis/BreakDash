@@ -17,11 +17,9 @@ import com.breakdash.launcher.core.FactoryBluetoothProbeState.Stage;
 import com.breakdash.launcher.core.FactoryBluetoothStatus;
 import com.breakdash.launcher.core.FactoryDiscoveryContract;
 import com.breakdash.launcher.core.FactoryDiscoveryLease;
-import com.breakdash.launcher.core.BluetoothDiscovery;
+import com.breakdash.launcher.core.FactoryDiscoveryEvents;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.LinkedHashSet;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,11 +38,9 @@ final class FactoryBluetoothProbe {
     private final Consumer<List<FactoryDiscoveryContract.Device>> devicesChanged;
     private final Consumer<String> capabilities;
     private final CountDownLatch releaseSearch=new CountDownLatch(1);
-    private final BluetoothDiscovery<String,FactoryDiscoveryContract.Device> found=new BluetoothDiscovery<>();
-    private final Set<String> payloadTypes=new LinkedHashSet<>();
     private FactoryDiscoveryContract discoveryContract;
+    private FactoryDiscoveryEvents discoveryEvents;
     private BroadcastReceiver discoveryReceiver;
-    private int broadcasts,unreadable;
     private volatile String discoveryEvidence="";
     private HandlerThread worker;
     private volatile Handler work;
@@ -113,6 +109,7 @@ final class FactoryBluetoothProbe {
                 Object feature=api.feature(binder,this::stopped);
                 state.advance(Stage.READING,SystemClock.elapsedRealtime());
                 discoveryContract=api.discovery();
+                discoveryEvents=new FactoryDiscoveryEvents(discoveryContract);
                 String ble=api.bleDefinitions();
                 main.post(()->{
                     if(state.closed()) return;
@@ -133,22 +130,23 @@ final class FactoryBluetoothProbe {
         BroadcastReceiver receiver=new BroadcastReceiver() {
             @Override public void onReceive(Context ignored,Intent intent) {
                 if(state.closed() || !discoveryContract.actions.contains(intent.getAction())) return;
-                broadcasts++;
-                try {
-                    int previous=found.rows().size();
+                int previous=discoveryEvents.devices().size();
+                discoveryEvents.observe(intent.getAction(),()->{
                     intent.setExtrasClassLoader(api.loader);
                     android.os.Bundle extras=intent.getExtras();
-                    if(extras!=null) {
-                        int count=0;
-                        for(String key:extras.keySet()) {
-                            if(count++>=16) break;
-                            Object value=extras.get(key);
-                            if(payloadTypes.size()<12) payloadTypes.add(payloadShape(value));
-                            for(FactoryDiscoveryContract.Device device:discoveryContract.devices(value)) found.getOrAdd(device.address,()->device);
+                    return new FactoryDiscoveryEvents.Payload() {
+                        public Object get(String key) { return extras==null ? null : extras.get(key); }
+                        public Iterable<?> values() {
+                            List<Object> values=new ArrayList<>();
+                            if(extras!=null) for(String key:extras.keySet()) {
+                                if(values.size()>=16) break;
+                                values.add(extras.get(key));
+                            }
+                            return values;
                         }
-                    }
-                    if(found.rows().size()!=previous) devicesChanged.accept(new ArrayList<>(found.rows()));
-                } catch(RuntimeException | LinkageError error) { unreadable++; }
+                    };
+                });
+                if(discoveryEvents.devices().size()!=previous) devicesChanged.accept(new ArrayList<>(discoveryEvents.devices()));
             }
         };
         discoveryReceiver=receiver;
@@ -156,15 +154,6 @@ final class FactoryBluetoothProbe {
         catch(RuntimeException error) { discoveryReceiver=null; finish(Outcome.DISCOVERY_EVENTS_UNAVAILABLE,""); return; }
         Handler handler=work;
         if(handler==null || !handler.post(()->search(feature))) finish(Outcome.INIT_FAILED,"");
-    }
-    private String payloadShape(Object value) {
-        if(value==null) return "null";
-        if(value instanceof List<?>) return "List (contents omitted)";
-        if(value instanceof Object[]) return "Object array (contents omitted)";
-        if(value.getClass().getName().equals("com.bt.BTDevice")) return "SDK BTDevice";
-        if(value instanceof String) return "String (value omitted)";
-        if(value instanceof Number || value instanceof Boolean) return "Primitive (value omitted)";
-        return "Opaque value omitted";
     }
     private void search(Object feature) {
         try {
@@ -174,7 +163,7 @@ final class FactoryBluetoothProbe {
             },this::stopped,()->releaseSearch.await(12000,TimeUnit.MILLISECONDS),()->state.advance(Stage.SCANNING,SystemClock.elapsedRealtime()));
             discoveryEvidence="Search accepted: "+result.accepted+"\nSearch stop confirmed: "+result.stopConfirmed+"\n";
             main.post(()->finish(!result.accepted ? Outcome.SEARCH_REJECTED : !result.stopConfirmed ? Outcome.SEARCH_STOP_UNCONFIRMED
-                    : unreadable>0 || broadcasts>0 && found.rows().isEmpty() ? Outcome.PARTIAL : Outcome.COMPLETE,""));
+                    : discoveryEvents.partial() ? Outcome.PARTIAL : Outcome.COMPLETE,""));
         } catch(Exception | LinkageError error) { failed(error,Outcome.READ_FAILED); }
     }
     private void failed(Throwable error,Outcome fallback) {
@@ -192,8 +181,7 @@ final class FactoryBluetoothProbe {
         String result=state.finish(outcome,SystemClock.elapsedRealtime(),values);
         if(result!=null) {
             if(discovery) result=result.replace("Factory SDK status check","Factory discovery")+discoveryEvidence
-                    +"Discovery broadcasts: "+broadcasts+"\nUnreadable payloads: "+unreadable+"\nLocal SDK devices: "+found.rows().size()+" (cap 32)\n"
-                    +"Payload shapes only: "+String.join(", ",payloadTypes)+"\n"+(discoveryContract==null ? "" : discoveryContract.schema)
+                    +(discoveryEvents==null ? "No discovery observations\n" : discoveryEvents.evidence())+(discoveryContract==null ? "" : discoveryContract.schema)
                     +"Factory device transport is unverified. Zero parsed models do not prove zero nearby devices. No generic vendor BLE API was invoked.\n";
             completed.accept(result+"SDK source: "+VendorBluetoothApi.PACKAGE+"\n"+routing);
         }

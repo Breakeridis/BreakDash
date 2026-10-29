@@ -62,7 +62,7 @@ Classic/BLE scan summaries, the latest operation stages/timings/numeric statuses
 and explicitly collected factory data. Android 12+ scan/connect permissions are
 labeled not applicable on Android 10/11. Internal scan error 3 is explained as a
 scan-start failure, not an OBD connection error.
-The total Bluetooth section is capped at 48 KB. Results are saved in app-private
+The total Bluetooth section is capped at 56 KB. Results are saved in app-private
 preferences until replaced or cleared; no device identity is persisted there.
 New captures include the producing app version as well as their timestamp.
 Unversioned results are older captures; updating does not silently rerun scans.
@@ -247,6 +247,29 @@ classes describe every backend. These definitions are saved separately; no
 unverified vendor BLE method is executed. Generic vendor BLE/GATT support and
 KW906 connectivity remain unproven until device evidence establishes them.
 
+v1.0.20 also handles primitive discovery fields using the installed SDK's own
+immutable public `KEY_`/`EXTRA_` String definitions. Only clear device/remote/BT
+name and address symbols are used; local, contact, credential, mutable and private
+fields do not match. The actual extra-key strings are resolved at runtime, never
+hardcoded or printed. A verified `ACTION_BT_DEVICE_FOUND` definition is required
+before loading any payload. Start/end/signal events are counted without decoding
+their extras. A value aliased to both found and control actions is not decoded.
+
+Addresses come only from SDK-declared address fields or the real SDK model.
+Colon, hyphen and compact BD-address forms normalize to one key; invalid, mixed,
+all-zero/broadcast, wrong-typed and conflicting aliases fail closed. Name-like
+strings are never searched for an address. Name aliases must agree; missing names
+use a placeholder. At most 32 local rows are retained, with later valid name
+updates merged by address. Existing SDK device objects take precedence when
+present. Unsupported schemas remain explicit instead of guessing payload fields.
+
+Discovery feedback records counts per SDK action symbol, actual device-found
+events, decoding outcomes, unreadable/undecodable device-found events and public
+field-symbol roles. It records no key literals or payload values. Start/end/status
+notifications with no device-found events no longer produce a partial decoding
+failure. A real device-found event that cannot be decoded still does. The native
+discovery section is capped at 6 KB inside the overall 56 KB Bluetooth limit.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -275,6 +298,12 @@ duplicate taps and refusal to restart when the dashboard is visited later.
 Discovery regressions validate the public protocol-constant allowlist, primitive
 control signatures, typed SDK-model decoding, bounded/cyclic payload handling,
 private getter exclusion and accepted-search stop ownership across cancellation.
+Primitive-field regressions cover SDK-defined keys with opaque values, aliases,
+normalization, invalid/mixed addresses, wrong types, unavailable schemas and
+private/local field exclusion. Event regressions verify control payloads are never
+loaded, unknown actions are ignored, real found-event failures are distinct from
+empty discovery, models remain authoritative and device identities cannot enter
+evidence. Name updates/deduplication remain bounded at 32 rows.
 
 Device acceptance:
 
