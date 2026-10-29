@@ -185,6 +185,12 @@ Houses system tools, software updates, and configuration controls.
 
 ### 3.7 Custom Launcher Settings Dialog
 
+The [Bluetooth diagnostic foundation](bluetooth-diagnostics.md) adds a Bluetooth
+settings tab with visible-only Classic/BLE discovery, Android pairing, a finite
+BLE connection/service test, factory phone/music shortcuts and encrypted diagnostic
+evidence. Integrated phone/music controls and live OBD are subsequent stages that
+require verified vendor interfaces and scanner transport details.
+
 A dedicated settings center addressing head unit-specific constraints (disabled Google services, app store access, and resource consumption).
 
 #### Core Sub-Functions:

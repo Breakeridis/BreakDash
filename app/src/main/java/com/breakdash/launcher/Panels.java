@@ -43,6 +43,7 @@ final class Panels implements AutoCloseable {
     private TextView monitor;
     private String packageActionStatus="",packageActionDetails="";
     private boolean monitorPending;
+    private BluetoothScreen bluetoothScreen;
     private final Runnable sample=this::sample;
     Panels(MainActivity main) { this.main=main; ui=main.ui; }
     final class Panel {
@@ -51,6 +52,10 @@ final class Panels implements AutoCloseable {
         final Tasks.Scope scope=main.tasks.scope();
         boolean busy;
         Runnable revealed=()->{};
+        Consumer<Boolean> visibility=value->{};
+        Runnable dismissed=()->{};
+        private boolean wasVisible;
+        void visibility(boolean value) { if(wasVisible!=value) { wasVisible=value; visibility.accept(value); } }
         Panel(String title,boolean scroll) {
             this(title,scroll,false);
         }
@@ -64,7 +69,7 @@ final class Panels implements AutoCloseable {
             body=ui.column();
             if(scroll) { ScrollView scroller=new ScrollView(main); scroller.setFillViewport(false); scroller.addView(body); root.addView(scroller,new LinearLayout.LayoutParams(-1,0,1)); }
             else root.addView(body,new LinearLayout.LayoutParams(-1,0,1));
-            dialog.setContentView(root); dialog.setOnDismissListener(ignored->{ scope.close(); stack.remove(this); if(settingsPanel==this) { settingsPanel=null; monitorPending=false; main.tasks.main.removeCallbacks(sample); } main.visibilityChanged(); });
+            dialog.setContentView(root); dialog.setOnDismissListener(ignored->{ scope.close(); visibility(false); dismissed.run(); stack.remove(this); if(settingsPanel==this) { settingsPanel=null; monitorPending=false; main.tasks.main.removeCallbacks(sample); } main.visibilityChanged(); });
             stack.add(this); dialog.show();
             Window window=dialog.getWindow();
             if(window!=null) {
@@ -84,10 +89,13 @@ final class Panels implements AutoCloseable {
     void closeTop() { if(!stack.isEmpty()) stack.get(stack.size()-1).dismiss(); }
     void visibilityChanged(boolean value) {
         resumed=value; main.tasks.main.removeCallbacks(sample);
+        for(Panel panel:new ArrayList<>(stack)) panel.visibility(panel.top());
         if(!stack.isEmpty() && stack.get(stack.size()-1).top()) stack.get(stack.size()-1).revealed.run();
         if(settingsPanel!=null && settingsPanel.top() && !monitorPending) main.tasks.main.post(sample);
     }
     @Override public void close() { for(Panel panel:new ArrayList<>(stack)) panel.dismiss(); main.tasks.main.removeCallbacks(sample); }
+    void bluetoothPermissionsResult() { if(bluetoothScreen!=null) bluetoothScreen.permissionsChanged(); }
+    void bluetoothClosed(BluetoothScreen screen) { if(bluetoothScreen==screen) bluetoothScreen=null; }
     private void copy(String value) {
         ((ClipboardManager)main.getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("BreakDash",value)); main.toast("Copied");
     }
@@ -230,7 +238,7 @@ final class Panels implements AutoCloseable {
         layout.addView(railScroll,new LinearLayout.LayoutParams(ui.dp(railWidth),-1));
         ScrollView pageScroll=new ScrollView(main); pageScroll.setFillViewport(true); LinearLayout page=ui.column(); page.setPadding(ui.dp(20),0,0,0); pageScroll.addView(page);
         layout.addView(pageScroll,new LinearLayout.LayoutParams(0,-1,1));
-        String[] tabs={"Appearance","Maps","Apps","Device"}; Button[] buttons=new Button[tabs.length]; final int[] selected={0};
+        String[] tabs={"Appearance","Maps","Apps","Bluetooth","Device"}; Button[] buttons=new Button[tabs.length]; final int[] selected={0};
         Runnable render=()->{
             if(panel.busy) return;
             page.removeAllViews(); pageScroll.scrollTo(0,0);
@@ -254,6 +262,9 @@ final class Panels implements AutoCloseable {
                     compactLink(page,"Map providers  ›",()->connections("maps")); break;
                 case 2:
                     appsSettings(panel,page); break;
+                case 3:
+                    explain(page,"Classic and BLE devices, a KW906 connection test, factory phone/music apps and Bluetooth diagnostics.");
+                    fullButton(page,"Open Bluetooth",()->bluetoothScreen=new BluetoothScreen(main)); break;
                 default:
                     explain(page,NavigationDiagnostics.defaultHome(main).startsWith(main.getPackageName()+"/") ? "BreakDash is the default Home" : "Choose BreakDash as the default Home");
                     fullButton(page,"Default launcher",()->openSettings(Settings.ACTION_HOME_SETTINGS));
@@ -442,7 +453,7 @@ final class Panels implements AutoCloseable {
         });
         panel.revealed=()->{ if(!panel.busy) render.run(); }; render.run(); if(main.release==null) check.performClick();
     }
-    private void report() {
+    void report() {
         Panel panel=new Panel("Report a problem",true,true);
         explain(panel.body,"Add a note, then review your report before sending.");
         EditText note=ui.input("Optional note about a problem or request"); note.setSingleLine(false); note.setMinLines(2); note.setMaxLines(5); note.setFilters(new InputFilter[]{new InputFilter.LengthFilter(4000)}); panel.body.addView(note);

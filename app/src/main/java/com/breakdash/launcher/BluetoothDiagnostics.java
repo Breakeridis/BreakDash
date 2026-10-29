@@ -1,0 +1,89 @@
+package com.breakdash.launcher;
+
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
+import android.location.LocationManager;
+import android.os.Build;
+import com.breakdash.launcher.core.ReportPrivacy;
+import java.util.Date;
+
+/** Snapshot only: collection never scans, connects, reads values or loads vendor code. */
+final class BluetoothDiagnostics {
+    static final String[] FACTORY={"com.nwd.android.phone","com.nwd.bt.music","com.nwd.kernel","com.nwd.setting.service"};
+    private static final String[] PERMISSIONS={Manifest.permission.BLUETOOTH,Manifest.permission.BLUETOOTH_ADMIN,
+            "android.permission.BLUETOOTH_SCAN","android.permission.BLUETOOTH_CONNECT",Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION};
+    private BluetoothDiagnostics() {}
+    private static SharedPreferences store(Context context) { return context.getSharedPreferences("bluetooth_diagnostics",Context.MODE_PRIVATE); }
+    static void probe(Context context,String summary) { store(context).edit().putString("probe","Captured: "+new Date()+"\n"+safe(summary,5500)).apply(); }
+    static void factory(Context context,String summary) { store(context).edit().putString("factory","Captured: "+new Date()+"\n"+safe(summary,7500)).apply(); }
+    static void clear(Context context) { store(context).edit().clear().apply(); }
+    static String safe(String text,int limit) {
+        String value=ReportPrivacy.text(text).replaceAll("[^\\x09\\x0A\\x0D\\x20-\\x7E]","?");
+        return value.length()<=limit ? value : value.substring(0,Math.max(0,limit-24))+"\n[section truncated]\n";
+    }
+    static BluetoothAdapter adapter(Context context) {
+        BluetoothManager manager=(BluetoothManager)context.getSystemService(Context.BLUETOOTH_SERVICE);
+        return manager==null ? null : manager.getAdapter();
+    }
+    static boolean granted(Context context,String permission) { return context.checkSelfPermission(permission)==PackageManager.PERMISSION_GRANTED; }
+    static boolean connectAllowed(Context context) { return Build.VERSION.SDK_INT<31 ? granted(context,Manifest.permission.BLUETOOTH) : granted(context,"android.permission.BLUETOOTH_CONNECT"); }
+    static boolean scanAllowed(Context context) { return connectAllowed(context) && (Build.VERSION.SDK_INT>=31 ? granted(context,"android.permission.BLUETOOTH_SCAN") : granted(context,Manifest.permission.ACCESS_FINE_LOCATION)); }
+    static boolean locationEnabled(Context context) {
+        try {
+            LocationManager manager=(LocationManager)context.getSystemService(Context.LOCATION_SERVICE);
+            return manager!=null && manager.isLocationEnabled();
+        } catch(RuntimeException error) { return false; }
+    }
+    @SuppressLint("MissingPermission")
+    static String platform(Context context) {
+        StringBuilder out=new StringBuilder("SDK: "+Build.VERSION.SDK_INT+"\n"); PackageManager pm=context.getPackageManager();
+        out.append("Classic feature: ").append(pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)).append("\nBLE feature: ").append(pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)).append('\n');
+        try {
+            BluetoothAdapter adapter=adapter(context);
+            out.append("Android adapter: ").append(adapter==null ? "unavailable" : !connectAllowed(context) ? "permission required" : adapter.isEnabled() ? "enabled" : "disabled").append('\n');
+            out.append("Location service: ").append(locationEnabled(context)).append('\n');
+        } catch(RuntimeException error) { out.append("Adapter/location snapshot unavailable: ").append(error.getClass().getSimpleName()).append('\n'); }
+        for(String name:new String[]{context.getPackageName(),"com.jiawei.maxobd"}) {
+            try {
+                PackageInfo info=pm.getPackageInfo(name,PackageManager.GET_PERMISSIONS);
+                out.append("App: ").append(name).append(" version ").append(info.versionName).append(" target SDK ").append(info.applicationInfo==null ? -1 : info.applicationInfo.targetSdkVersion).append('\n');
+                for(String permission:PERMISSIONS) {
+                    boolean declared=false,granted=false;
+                    if(info.requestedPermissions!=null) for(int i=0;i<info.requestedPermissions.length;i++) if(permission.equals(info.requestedPermissions[i])) {
+                        declared=true; granted=info.requestedPermissionsFlags!=null && i<info.requestedPermissionsFlags.length && (info.requestedPermissionsFlags[i]&PackageInfo.REQUESTED_PERMISSION_GRANTED)!=0;
+                    }
+                    out.append("  ").append(permission.replace("android.permission.","")).append(" declared=").append(declared).append(" granted=").append(granted).append('\n');
+                }
+            } catch(PackageManager.NameNotFoundException | RuntimeException error) { out.append("App unavailable: ").append(name).append('\n'); }
+        }
+        return safe(out.toString(),3000);
+    }
+    static String components(Context context) {
+        StringBuilder out=new StringBuilder();
+        for(String name:FACTORY) {
+            try {
+                PackageInfo info=context.getPackageManager().getPackageInfo(name,PackageManager.GET_SERVICES);
+                out.append("Package: ").append(name).append(" version ").append(info.versionName).append('\n');
+                if(info.services==null || info.services.length==0) out.append("  No declared services\n");
+                if(info.services!=null) for(int i=0;i<Math.min(info.services.length,12);i++) {
+                    ServiceInfo service=info.services[i]; out.append("  Service ").append(service.name).append(" exported=").append(service.exported).append(" enabled=").append(service.enabled).append(" permission=").append(service.permission==null ? "none" : service.permission).append('\n');
+                }
+            } catch(PackageManager.NameNotFoundException | RuntimeException error) { out.append("Package unavailable: ").append(name).append('\n'); }
+        }
+        return safe(out.toString(),3500);
+    }
+    static String collect(Context context) {
+        SharedPreferences saved=store(context);
+        String report="BLUETOOTH (snapshot; no scan or connection initiated)\n"+platform(context)
+                +"\nLAST BLUETOOTH OPERATION\n"+saved.getString("probe","No probe captured.")
+                +"\nFACTORY INTERFACE INSPECTION\n"+saved.getString("factory","Not inspected. Use Bluetooth > Diagnostics > Inspect factory interfaces.")+"\n";
+        return safe(report,16384);
+    }
+}

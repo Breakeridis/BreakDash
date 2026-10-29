@@ -337,6 +337,7 @@ public final class MainActivity extends Activity {
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results) {
         super.onRequestPermissionsResult(requestCode,permissions,results);
         if(requestCode==42) { portal.active(false); if(dashboardActive) portal.active(true); }
+        if(requestCode==43) panels.bluetoothPermissionsResult();
     }
     void visibilityChanged() {
         boolean show=resumed && panels.empty();

@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-feature android:name="android.hardware.usb.accessory" android:required="false" />
@@ -17,6 +23,11 @@
         <package android:name="com.google.android.gms" />
         <package android:name="com.android.vending" />
         <package android:name="com.aurora.store" />
+        <package android:name="com.jiawei.maxobd" />
+        <package android:name="com.nwd.android.phone" />
+        <package android:name="com.nwd.bt.music" />
+        <package android:name="com.nwd.kernel" />
+        <package android:name="com.nwd.setting.service" />
     </queries>
     <application
         android:name=".BreakDashApplication"

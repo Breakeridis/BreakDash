@@ -36,7 +36,8 @@ final class Diagnostics {
                 .append("\nABIs: ").append(String.join(", ",Build.SUPPORTED_ABIS)).append("\nBuild: ").append(Build.DISPLAY)
                 .append("\nDisplay: ").append(context.getResources().getDisplayMetrics()).append("\n\nRADIO\n").append(cloud ? ReportPrivacy.text(radio) : radio)
                 .append("\nKERNEL\n").append(file("/proc/version")).append("\nMEMORY (raw; vendor counters may be inflated)\n").append(file("/proc/meminfo"))
-                .append('\n').append(UsbDiagnostics.collect(context,cloud)).append('\n');
+                .append('\n').append(UsbDiagnostics.collect(context,cloud)).append('\n')
+                .append(BluetoothDiagnostics.collect(context)).append('\n');
         if(context instanceof MainActivity) report.append(((MainActivity)context).navigationDiagnostics()).append('\n');
         report.append(DiagnosticHistory.collect()).append("\nINSTALLED APP SIGNING\n");
         try { report.append(ApkSignatures.read(context.getPackageManager(),context.getPackageName(),null).describe()).append('\n'); }
