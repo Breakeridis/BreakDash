@@ -2,6 +2,10 @@
 
 Updated in v1.0.6 after physical head-unit feedback.
 
+### v1.0.10 radio follow-up
+
+[Factory radio integration](radio-integration.md) supersedes v1.0.8's purely passive startup: it restores a visible-only read connection using the installed read-only factory proxy/model code. It sends no frequency-request broadcast and guards all radio Bundle access against unknown/malformed Parcelable payloads. Reports include bounded model and extra-key/type schemas, ignored-broadcast counts and failure types. Arbitrary extra values and object dumps are omitted; the existing privacy filter and explicit preview/send flow apply. This addresses a captured receiver crash rather than assuming task routing alone explains the symptom.
+
 ### v1.0.8 follow-up
 
 The vendor Home issue remained observable, so task separation alone is not treated as a confirmed hardware fix. Dashboard entry is now passive: it registers the documented radio observers/broadcast receiver and reads settings, but does not bind the tuner, query RT, or send a state-request broadcast on resume. Commands bind only following an explicit tap, time out after eight seconds if unconnected, and release when the cockpit is hidden. Frequency/PS still depend on the fields the firmware actually exposes; RT becomes available after a dashboard command connects the tuner. No undocumented Parcelable layout, firmware property write or forced foreground loop is introduced.

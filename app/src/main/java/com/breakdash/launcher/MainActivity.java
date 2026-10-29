@@ -39,7 +39,7 @@ public final class MainActivity extends Activity {
     private Tasks.Scope life,visible,pinnedRouteScope;
     private boolean resumed,dashboardActive,updateAttempted,pinRouting;
     private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,updates;
-    private Button radioPower,recenter,navigate,cancelNavigation;
+    private Button radioPower,radioRefresh,recenter,navigate,cancelNavigation;
     private final Button[] presets=new Button[6];
     private LinearLayout favorites;
     private LinearLayout navigationFooter;
@@ -95,6 +95,8 @@ public final class MainActivity extends Activity {
         LinearLayout stationHeader=ui.row();
         Button station=ui.button("RADIO  ↗",()->launchPackage("com.nwd.radio")); station.setTextColor(ui.accent); station.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
         stationHeader.addView(station,new LinearLayout.LayoutParams(0,ui.dp(60),1));
+        radioRefresh=ui.button("↻",()->radio.refresh()); radioRefresh.setTextSize(24); radioRefresh.setContentDescription("Refresh radio connection and current station");
+        stationHeader.addView(radioRefresh,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
         radioPower=ui.button("○",()->radio.power(!radio.state.playing)); radioPower.setContentDescription("Toggle radio audio"); stationHeader.addView(radioPower,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
         tuner.addView(stationHeader);
         LinearLayout frequencyRow=ui.row(); frequency=ui.text("—",46,ui.text); frequency.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
@@ -102,7 +104,7 @@ public final class MainActivity extends Activity {
         Button band=ui.button("Band",()->radio.changeBand()); frequencyRow.addView(band,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(64))); tuner.addView(frequencyRow);
         radioStatus=ui.text("Connecting to hardware…",12,ui.amber); radioStatus.setSingleLine(true); tuner.addView(radioStatus);
         metadata=ui.text("NWD hardware tuner",14,ui.muted); metadata.setMaxLines(2); tuner.addView(metadata,new LinearLayout.LayoutParams(-1,ui.dp(38)));
-        LinearLayout seek=ui.row(); ui.weighted(seek,ui.button("‹  Seek",()->radio.seek(false)),64); ui.weighted(seek,ui.button("Seek  ›",()->radio.seek(true)),64); tuner.addView(seek);
+        LinearLayout seek=ui.row(); ui.weighted(seek,ui.button("‹  Prev",()->radio.seek(false)),64); ui.weighted(seek,ui.button("Next  ›",()->radio.seek(true)),64); tuner.addView(seek);
         for(int row=0;row<2;row++) {
             LinearLayout bank=ui.row();
             for(int column=0;column<3;column++) {
@@ -111,6 +113,7 @@ public final class MainActivity extends Activity {
                 preset.setOnLongClickListener(view->{
                     int value=radio.state.frequency; byte bandValue=radio.state.band;
                     if(!RadioFrequency.valid(value)) { toast("No current station to save"); return true; }
+                    if(!radio.state.bandKnown) { radio.refresh(); toast("Waiting for the station band · try saving again"); return true; }
                     radio.save(slot,()->{ prefs.preset(slot,value,bandValue); view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); renderRadio(); toast("Saved preset " + (slot+1)); }); return true;
                 });
                 presets[slot]=preset; ui.weighted(bank,preset,64);
@@ -235,9 +238,10 @@ public final class MainActivity extends Activity {
         RadioController.State state=radio.state;
         frequency.setText(RadioFrequency.number(state.frequency));
         radioPower.setText(state.playing ? "●" : "○"); radioPower.setTextColor(state.playing ? ui.accent : ui.muted);
-        radioStatus.setText((RadioFrequency.valid(state.frequency) ? RadioFrequency.unit(state.frequency)+"  ·  " : "") + (state.observing ? state.playing ? "ON AIR" : "STANDBY" : "STATUS PAUSED"));
-        radioStatus.setTextColor(state.playing ? ui.accent : ui.amber);
-        metadata.setText(!state.rt.isEmpty() ? state.ps + "  " + state.rt : !state.ps.isEmpty() ? state.ps : "Hold a preset to save your station");
+        String connection=!state.observing ? "PAUSED" : state.connecting ? "CONNECTING…" : state.connected ? state.playing ? "ON AIR · CONNECTED" : "CONNECTED" : "RADIO OFFLINE";
+        radioStatus.setText((RadioFrequency.valid(state.frequency) ? RadioFrequency.unit(state.frequency)+" · " : "")+connection);
+        radioStatus.setTextColor(state.connected ? ui.green : ui.amber); radioRefresh.setEnabled(!state.connecting);
+        metadata.setText(!state.rt.isEmpty() ? state.ps + "  " + state.rt : !state.ps.isEmpty() ? state.ps : !state.error.isEmpty() ? state.error : !RadioFrequency.valid(state.frequency) ? "Waiting for station data" : "Hold a preset to save your station");
         for(int i=0;i<6;i++) if(presets[i]!=null) {
             int saved=prefs.frequency(i); presets[i].setText((i+1)+"\n"+RadioFrequency.number(saved));
             presets[i].setTextColor(saved!=0 && saved==state.frequency && prefs.band(i)==state.band ? ui.accent : ui.muted);

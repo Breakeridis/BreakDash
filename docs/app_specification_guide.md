@@ -166,6 +166,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 
 **v1.0.8 revision:** [Radio/Home and signing follow-up](diagnostic-privacy-and-usb.md) makes dashboard radio startup passive, binds tuner commands only after explicit taps, adds bounded persisted app/crash/update diagnostics, and adds a legacy certificate-read fallback while retaining exact signer verification.
 
+**v1.0.10 revision:** [Factory radio status](radio-integration.md) restores a visible-only read connection with the factory's real generated proxy/model, guards vendor Parcelable broadcasts, adds clear connection status and refresh, and avoids all frequency-request broadcasts. It supersedes v1.0.8's passive-only station startup without introducing polling or guessed wire formats.
+
 Houses system tools, software updates, and configuration controls.
 
 #### Core Sub-Functions:
