@@ -25,6 +25,7 @@
         <package android:name="com.aurora.store" />
         <package android:name="com.jiawei.maxobd" />
         <package android:name="com.nwd.android.phone" />
+        <package android:name="com.bt.bc03" />
         <package android:name="com.nwd.bt.music" />
         <package android:name="com.nwd.kernel" />
         <package android:name="com.nwd.setting.service" />

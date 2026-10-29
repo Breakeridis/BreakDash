@@ -27,6 +27,7 @@ import com.breakdash.launcher.core.RadioFrequency;
 import com.breakdash.launcher.core.ThemePalette;
 import com.breakdash.launcher.core.NavigationGuidance;
 import com.breakdash.launcher.core.FactoryBluetoothLaunch;
+import com.breakdash.launcher.core.FactoryDiscoveryContract;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -41,6 +42,8 @@ public final class MainActivity extends Activity {
     private final FactoryBluetoothLaunch factoryBluetoothLaunch=new FactoryBluetoothLaunch();
     private final Runnable factoryBluetoothLaunchTimeout=this::advanceFactoryBluetoothLaunch;
     private TextView factoryBluetoothNotice;
+    private boolean factoryDiscoveryRequested;
+    private List<FactoryDiscoveryContract.Device> factoryDevices=new ArrayList<>();
     List<AppCatalog.App> apps=new ArrayList<>();
     Downloads.Release release;
     private Tasks.Scope life,visible,pinnedRouteScope;
@@ -364,9 +367,22 @@ public final class MainActivity extends Activity {
         advanceFactoryBluetoothLaunch();
     }
     void checkFactoryBluetooth() {
+        requestFactoryBluetooth(false);
+    }
+    void discoverFactoryBluetooth() {
+        requestFactoryBluetooth(true);
+    }
+    List<FactoryDiscoveryContract.Device> factoryBluetoothDevices() { return new ArrayList<>(factoryDevices); }
+    void clearFactoryBluetoothDevices() { factoryDevices.clear(); }
+    private void saveFactoryCheck(String summary) {
+        if(factoryDiscoveryRequested) BluetoothDiagnostics.factoryDiscovery(this,summary); else BluetoothDiagnostics.factoryStatus(this,summary);
+    }
+    private void requestFactoryBluetooth(boolean discovery) {
         if(factoryBluetoothProbe!=null || factoryBluetoothLaunch.pending()) { toast("Factory Bluetooth check is already running"); return; }
+        factoryDiscoveryRequested=discovery;
+        if(discovery) factoryDevices.clear();
         factoryBluetoothLaunch.request(android.os.SystemClock.elapsedRealtime());
-        BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: WAITING_FOR_DASHBOARD\nThe check was requested; waiting for panels to close.\n");
+        saveFactoryCheck("Factory Bluetooth operation\nResult: WAITING_FOR_DASHBOARD\nThe operation was requested; waiting for panels to close.\n");
         DiagnosticHistory.event("factory Bluetooth check requested · waiting for dashboard");
         factoryBluetoothNotice("Preparing Bluetooth check…");
         tasks.main.postDelayed(factoryBluetoothLaunchTimeout,FactoryBluetoothLaunch.WAIT_MS);
@@ -381,18 +397,21 @@ public final class MainActivity extends Activity {
             startFactoryBluetoothCheck();
         } else if(decision==FactoryBluetoothLaunch.Decision.EXPIRED) {
             tasks.main.removeCallbacks(factoryBluetoothLaunchTimeout);
-            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: DASHBOARD_UNAVAILABLE\nThe requested check could not start within 3 seconds. No service binding attempted.\n");
+            saveFactoryCheck("Factory Bluetooth operation\nResult: DASHBOARD_UNAVAILABLE\nThe requested operation could not start within 3 seconds. No service binding attempted.\n");
             DiagnosticHistory.event("factory Bluetooth check not started · dashboard unavailable");
             factoryBluetoothNotice("Bluetooth check could not start\nResult saved in Diagnostics");
         }
     }
     private void startFactoryBluetoothCheck() {
-        BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: STARTING\nDashboard visible; starting the factory status session.\n");
+        saveFactoryCheck("Factory Bluetooth operation\nResult: STARTING\nDashboard visible; starting the factory session.\n");
         DiagnosticHistory.event("factory Bluetooth check started on dashboard");
-        factoryBluetoothNotice("Checking factory Bluetooth…\nPlease wait up to 8 seconds");
+        factoryBluetoothNotice(factoryDiscoveryRequested ? "Searching factory Bluetooth…\n12-second scan after startup" : "Checking factory Bluetooth…\nPlease wait up to 8 seconds");
         try {
-            factoryBluetoothProbe=new FactoryBluetoothProbe(this,result->{
-                factoryBluetoothProbe=null; BluetoothDiagnostics.factoryStatus(this,result);
+            factoryBluetoothProbe=new FactoryBluetoothProbe(this,factoryDiscoveryRequested,devices->{
+                factoryDevices=new ArrayList<>(devices);
+                if(resumed && dashboardActive) factoryBluetoothNotice("Searching factory Bluetooth…\n"+devices.size()+" devices listed");
+            },result->BluetoothDiagnostics.factoryBle(this,result),result->{
+                factoryBluetoothProbe=null; saveFactoryCheck(result);
                 DiagnosticHistory.event("factory Bluetooth check result saved");
                 if(resumed && dashboardActive) {
                     factoryBluetoothNotice("Bluetooth check finished\nResult saved in Diagnostics");
@@ -402,7 +421,7 @@ public final class MainActivity extends Activity {
             factoryBluetoothProbe.start();
         } catch(RuntimeException | LinkageError error) {
             cancelFactoryBluetoothCheck();
-            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: START_FAILED\nCould not initialize the check. Exception details omitted.\n");
+            saveFactoryCheck("Factory Bluetooth operation\nResult: START_FAILED\nCould not initialize the operation. Exception details omitted.\n");
             factoryBluetoothNotice("Bluetooth check could not start\nResult saved in Diagnostics");
         }
     }
@@ -416,7 +435,7 @@ public final class MainActivity extends Activity {
     private void cancelPendingFactoryBluetoothCheck() {
         if(factoryBluetoothLaunch.cancel()) {
             tasks.main.removeCallbacks(factoryBluetoothLaunchTimeout);
-            BluetoothDiagnostics.factoryStatus(this,"Factory SDK status check\nResult: CANCELLED\nThe dashboard handoff was cancelled before service binding.\n");
+            saveFactoryCheck("Factory Bluetooth operation\nResult: CANCELLED\nThe dashboard handoff was cancelled before service binding.\n");
             DiagnosticHistory.event("factory Bluetooth dashboard handoff cancelled");
             if(factoryBluetoothNotice!=null) factoryBluetoothNotice.setText("Bluetooth check cancelled\nResult saved in Diagnostics");
         }

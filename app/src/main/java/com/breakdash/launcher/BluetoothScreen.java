@@ -48,9 +48,9 @@ final class BluetoothScreen {
         };
         panel.dismissed=()->main.panels.bluetoothClosed(this);
         // The Panel constructor already marked itself visible before our callback existed.
-        panel.visibility.accept(panel.top()); render();
+        panel.visibility.accept(panel.top()); controller.importFactory(main.factoryBluetoothDevices()); render();
     }
-    void permissionsChanged() { controller.refreshPaired(); render(); }
+    void permissionsChanged() { controller.refreshPaired(); controller.importFactory(main.factoryBluetoothDevices()); render(); }
     private Button action(String label,Runnable run) {
         Button button=ui.button(label,run); LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,ui.dp(72)); params.bottomMargin=ui.dp(8); page.addView(button,params); return button;
     }
@@ -72,12 +72,16 @@ final class BluetoothScreen {
             action("Allow Bluetooth access",this::permissions);
         }
         action("Bluetooth settings / forget a device",()->settings(Settings.ACTION_BLUETOOTH_SETTINGS));
+        action("Scan factory Bluetooth",main::discoverFactoryBluetooth);
+        text("Factory discovery returns to the dashboard for a 12-second scan. Close other Bluetooth/OBD scans first. Reopen this page for results; their transport is unverified until tested.");
         if(Build.VERSION.SDK_INT<31 && !BluetoothDiagnostics.locationEnabled(main)) action("Turn on Location for scanning",()->settings(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
         LinearLayout scans=ui.row();
-        ui.weighted(scans,ui.button("Scan Classic",()->{ selected=null; controller.scan(false); render(); }),72);
-        ui.weighted(scans,ui.button("Scan BLE",()->{ selected=null; controller.scan(true); render(); }),72);
+        ui.weighted(scans,ui.button("Android Classic",()->{ selected=null; controller.scan(false); controller.importFactory(main.factoryBluetoothDevices()); render(); }),72);
+        ui.weighted(scans,ui.button("Scan BLE",()->{ selected=null; controller.scan(true); controller.importFactory(main.factoryBluetoothDevices()); render(); }),72);
         ui.weighted(scans,ui.button("Stop / Disconnect",()->controller.stop(Reason.USER_STOP)),72);
         page.addView(scans); ui.gap(page,8);
+        action("Scan BLE · compatibility",()->{ selected=null; controller.scan(true,true); controller.importFactory(main.factoryBluetoothDevices()); render(); });
+        text("Modern and compatibility BLE are separate Android scan paths. Compatibility may use the same firmware stack and cannot report asynchronous scan errors. No results do not prove the scanner is working.");
         action("Refresh paired devices",()->{ controller.refreshPaired(); render(); });
         text("Scans stop after 12 seconds. Select a device below. Paired does not mean connected. Names and addresses stay on this device.");
         if(selected!=null) selection();
@@ -92,10 +96,11 @@ final class BluetoothScreen {
         ui.heading(page,"SELECTED DEVICE"); text(selected.name+" · "+selected.transport()+" · "+selected.state());
         text(localAddress(selected));
         boolean classic=selected.classic || selected.type==BluetoothDevice.DEVICE_TYPE_CLASSIC || selected.type==BluetoothDevice.DEVICE_TYPE_DUAL;
-        boolean ble=selected.ble || selected.type==BluetoothDevice.DEVICE_TYPE_LE || selected.type==BluetoothDevice.DEVICE_TYPE_DUAL;
+        boolean ble=selected.factory || selected.ble || selected.type==BluetoothDevice.DEVICE_TYPE_LE || selected.type==BluetoothDevice.DEVICE_TYPE_DUAL;
         final BluetoothController.Device device=selected;
         Button pair=action("Pair using Android",()->controller.pair(device)); pair.setEnabled(classic && device.bond==BluetoothDevice.BOND_NONE);
         Button test=action("Test BLE connection",()->controller.test(device)); test.setEnabled(ble);
+        if(selected.factory) text("This factory result has no verified transport. Test BLE connection explicitly tries Android LE for this address, bypassing Android discovery; success is not guaranteed.");
         text("The BLE test connects and lists available services, then disconnects. It does not read car data or send vehicle commands. Open MAXOBD after the test to use the scanner.");
     }
     @android.annotation.SuppressLint("MissingPermission")
@@ -130,7 +135,7 @@ final class BluetoothScreen {
         action("Send feedback",()->{ controller.stop(Reason.USER_STOP); main.panels.report(); });
         action("Clear Bluetooth diagnostic history",()->{
             controller.stop(Reason.USER_STOP);
-            cancelDiagnostics(); BluetoothDiagnostics.clear(main); inspectionStatus=""; managerStatus=""; render();
+            cancelDiagnostics(); BluetoothDiagnostics.clear(main); main.clearFactoryBluetoothDevices(); inspectionStatus=""; managerStatus=""; render();
         });
         TextView report=ui.text(BluetoothDiagnostics.collect(main),14,ui.muted); report.setTextIsSelectable(true); page.addView(report);
     }

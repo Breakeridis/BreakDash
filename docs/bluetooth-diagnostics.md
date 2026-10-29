@@ -62,7 +62,7 @@ Classic/BLE scan summaries, the latest operation stages/timings/numeric statuses
 and explicitly collected factory data. Android 12+ scan/connect permissions are
 labeled not applicable on Android 10/11. Internal scan error 3 is explained as a
 scan-start failure, not an OBD connection error.
-The total Bluetooth section is capped at 40 KB. Results are saved in app-private
+The total Bluetooth section is capped at 48 KB. Results are saved in app-private
 preferences until replaced or cleared; no device identity is persisted there.
 New captures include the producing app version as well as their timestamp.
 Unversioned results are older captures; updating does not silently rerun scans.
@@ -198,6 +198,53 @@ this user-requested operation is active. It uses the right column, leaving map
 and navigation controls available; opening a panel hides it. Feedback carries
 bounded request/start/completion events in addition to the saved status section.
 
+### Factory discovery and BLE options
+
+v1.0.19 adds **Scan factory Bluetooth** on the Devices page. It reuses the verified
+dashboard handoff and factory service/proxy. One explicit native search lasts
+12 seconds after startup, within a 20-second overall session. It invokes only the
+observed boolean `startSearchDevice_BC()` and `stopSearchDevice_BC()` methods with
+validated signatures. A rejected start does not issue stop. An accepted start
+owns one stop attempt, including cancellation while the start RPC returns or
+while waiting. Leaving the dashboard unregisters the receiver and unbinds; an
+already executing SDK call may finish its stop cleanup afterward. The global
+single-worker guard remains held until that worker exits.
+
+Discovery broadcasts are selected from the installed SDK's immutable public
+String action constants containing discovery/search/found markers. This live
+action reads those protocol constants, separately from metadata-only inspection.
+No actions are fabricated, and missing verifiable event definitions produce an
+explicit unsupported outcome before a search starts. Incoming broadcasts are
+untrusted: the trusted SDK class loader is assigned before extras are decoded,
+malformed Parcelables are caught, and only actual SDK `BTDevice` objects (or
+bounded lists/arrays of them) use observed String `getName`/`getAddress` methods.
+The SDK's real Parcelable implementation handles its wire format. Other values
+are not interpreted as devices. No phonebook/PIM Binder callback is implemented.
+
+At most 32 unique, validated addresses/names are held in activity memory for
+local display after reopening Bluetooth. They never enter preferences or feedback.
+Reports contain only counts, fixed outcomes, protocol definitions and broad
+payload shapes; no extra keys, raw payloads, device strings or exception messages.
+Unreadable or unsupported event payloads make results partial; zero parsed models
+does not prove zero nearby devices. Factory transport remains unverified. Selecting
+a factory result enables an explicit Android **Test BLE connection** by its address,
+which bypasses Android scanning without assuming that the factory result is BLE.
+
+**Scan BLE** retains the modern Android scanner, now handling bounded batched
+results too. **Scan BLE · compatibility** uses the legacy Android callback API as
+a separate explicit 12-second scan. It may reach the same firmware stack and is
+not a guaranteed workaround for error 3. Legacy API rejection is reported; accepted
+legacy scans have no asynchronous error callback, so an empty result is explicitly
+inconclusive. Modern and compatibility summaries are saved independently, along
+with observation counts. Scans do not run concurrently or retry automatically.
+Raw advertisements are never retained or uploaded. Names/addresses remain local.
+
+Factory discovery also performs bounded metadata-only BLE/GATT class inspection
+of the actual resolved service APK, rather than assuming that the phone SDK's
+classes describe every backend. These definitions are saved separately; no
+unverified vendor BLE method is executed. Generic vendor BLE/GATT support and
+KW906 connectivity remain unproven until device evidence establishes them.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -223,6 +270,9 @@ deadline precedence, exactly-once cleanup and rejection of late completions.
 Dashboard-handoff regressions reproduce delayed dismissal callbacks and a partly
 closed panel stack, check exactly-once launch, and cover cancellation, timeout,
 duplicate taps and refusal to restart when the dashboard is visited later.
+Discovery regressions validate the public protocol-constant allowlist, primitive
+control signatures, typed SDK-model decoding, bounded/cyclic payload handling,
+private getter exclusion and accepted-search stop ownership across cancellation.
 
 Device acceptance:
 
@@ -274,6 +324,15 @@ Device acceptance:
     and check a new requested/starting/completed or explicit failure result; it
     must not remain Not checked. Reopen a panel or background during handoff,
     wait beyond three seconds, then return: no delayed automatic check should run.
+13. Close other Bluetooth/OBD scans and temporarily disconnect the scanner from
+    the phone. Run **Scan factory Bluetooth**, wait on the dashboard until the
+    saved-result notice, reopen Devices and review factory rows. Run modern BLE
+    and compatibility BLE separately; check their distinct summaries and explicit
+    error/empty/inconclusive states. If the scanner appears in factory results,
+    select it and explicitly test BLE. Test closing/backgrounding while the native
+    start or stop RPC is pending, during discovery and while decoding a result;
+    verify no repeated workers, no retained binding and no late history overwrite.
+    Send feedback even when the event contract or BLE path is unavailable.
 
 The next implementation follows the reported interfaces and transport. Do not
 guess vendor callback layouts, characteristic UUIDs, pairing PINs or OBD frames.

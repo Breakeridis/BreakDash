@@ -22,16 +22,19 @@ final class BluetoothDiagnostics {
             "android.permission.BLUETOOTH_SCAN","android.permission.BLUETOOTH_CONNECT",Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION};
     private BluetoothDiagnostics() {}
     private static SharedPreferences store(Context context) { return context.getSharedPreferences("bluetooth_diagnostics",Context.MODE_PRIVATE); }
-    static void probe(Context context,State operation,String summary) {
+    static void probe(Context context,State operation,String summary,String driver) {
         String value=captured(summary);
         SharedPreferences.Editor edit=store(context).edit().putString("probe",safe(value,4300));
         if(operation==State.CLASSIC_SCAN || operation==State.BLE_SCAN) edit.putString(operation==State.CLASSIC_SCAN ? "classic" : "ble",safe(value,400));
+        if(operation==State.BLE_SCAN) edit.putString(driver.equals("BLE_COMPAT") ? "ble_compat" : "ble_modern",safe(value,650));
         edit.apply();
     }
     private static String captured(String summary) { return "Captured: "+new Date()+"\nCaptured by BreakDash: "+BuildConfig.VERSION_NAME+"\n"+summary; }
     static void factory(Context context,String summary) { store(context).edit().putString("factory",safe(captured(summary),28000)).apply(); }
     static void manager(Context context,boolean adb,String summary) { store(context).edit().putString(adb ? "manager_adb" : "manager_app",safe(captured(summary),1400)).apply(); }
     static void factoryStatus(Context context,String summary) { store(context).edit().putString("factory_status",safe(captured(summary),1600)).apply(); }
+    static void factoryDiscovery(Context context,String summary) { store(context).edit().putString("factory_discovery",safe(captured(summary),4000)).apply(); }
+    static void factoryBle(Context context,String summary) { store(context).edit().putString("factory_ble",safe(captured(summary),2500)).apply(); }
     static void clear(Context context) { store(context).edit().clear().apply(); }
     static String safe(String text,int limit) {
         String value=ReportPrivacy.text(text).replaceAll("[^\\x09\\x0A\\x0D\\x20-\\x7E]","?");
@@ -100,12 +103,16 @@ final class BluetoothDiagnostics {
         String report="BLUETOOTH (snapshot; no scan or connection initiated)\nSaved captures survive updates. Check capture time/version; unversioned entries are from older releases.\n"+platform(context)
                 +"\nLAST CLASSIC SCAN\n"+safe(saved.getString("classic","Not captured since this update."),400)
                 +"\nLAST BLE SCAN\n"+safe(saved.getString("ble","Not captured since this update."),400)
+                +"\nLAST MODERN BLE SCAN\n"+safe(saved.getString("ble_modern","Not captured."),650)
+                +"\nLAST COMPATIBILITY BLE SCAN\n"+safe(saved.getString("ble_compat","Not captured."),650)
                 +"\nLAST BLUETOOTH OPERATION\n"+safe(saved.getString("probe","No probe captured."),4300)
                 +"\nFACTORY BLUETOOTH STATUS (explicit dashboard check)\n"+safe(saved.getString("factory_status","Not checked. Use Check factory Bluetooth status."),1600)
+                +"\nFACTORY DISCOVERY\n"+safe(saved.getString("factory_discovery","Not scanned. Use Scan factory Bluetooth."),4000)
+                +"\nRESOLVED FACTORY BLE/GATT DEFINITIONS\n"+safe(saved.getString("factory_ble","Not inspected since discovery update."),2500)
                 +"\nANDROID BLUETOOTH MANAGER: APP PROCESS\n"+safe(saved.getString("manager_app","Not captured. Use the explicit status capture button."),1400)
                 +"\nANDROID BLUETOOTH MANAGER: LOCAL ADB\n"+safe(saved.getString("manager_adb","Not captured. Local ADB is optional."),1400)
                 +(!saved.contains("manager_app") && !saved.contains("manager_adb") && saved.contains("manager") ? "\nLEGACY MANAGER CAPTURE (method not recorded)\n"+safe(saved.getString("manager",""),1400) : "")
                 +"\nFACTORY INTERFACE INSPECTION\n"+safe(saved.getString("factory","Not inspected. Use Bluetooth > Diagnostics > Inspect vendor SDK entry points."),28000)+"\n";
-        return safe(report,40960);
+        return safe(report,49152);
     }
 }

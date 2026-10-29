@@ -15,8 +15,12 @@ import android.os.IBinder;
 import android.os.IInterface;
 import com.breakdash.launcher.core.FactoryApkTrust;
 import com.breakdash.launcher.core.FactoryBluetoothStatus;
+import com.breakdash.launcher.core.FactoryDiscoveryContract;
+import com.breakdash.launcher.core.BluetoothInspectionPlan;
+import com.breakdash.launcher.core.BluetoothSdkSchema;
 import com.breakdash.launcher.core.FactoryBluetoothProbeState.Outcome;
 import dalvik.system.PathClassLoader;
+import dalvik.system.DexFile;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -34,9 +38,12 @@ final class VendorBluetoothApi {
     }
     static final class SideEffectBlocked extends SecurityException {}
     private final Class<?> controller,contract;
+    final ClassLoader loader;
+    private List<String> targetPaths;
     private final Method getInstance,getServiceIntent,asInterface;
     private final FactoryBluetoothStatus status;
     private VendorBluetoothApi(ClassLoader loader) throws Exception {
+        this.loader=loader;
         controller=Class.forName("com.bt.BTController",false,loader);
         contract=Class.forName(DESCRIPTOR,false,loader);
         getInstance=controller.getMethod("getInstance",Context.class);
@@ -90,7 +97,7 @@ final class VendorBluetoothApi {
         ServiceInfo service=matches.get(0).serviceInfo;
         if(service==null || !service.exported || !service.enabled || !service.applicationInfo.enabled) throw new Unavailable(Outcome.BIND_REJECTED);
         if(service.permission!=null && context.checkSelfPermission(service.permission)!=android.content.pm.PackageManager.PERMISSION_GRANTED) throw new Unavailable(Outcome.BIND_REJECTED);
-        trustedPaths(service.applicationInfo);
+        targetPaths=trustedPaths(service.applicationInfo);
         return new Intent(intent).setComponent(new ComponentName(service.packageName,service.name)).setPackage(service.packageName);
     }
     static String routeSummary(Intent intent) {
@@ -99,14 +106,50 @@ final class VendorBluetoothApi {
     }
     private static String definition(String value) { return value!=null && value.matches("[A-Za-z_$][A-Za-z0-9_.$]{0,199}") ? value : "not recorded"; }
     FactoryBluetoothStatus.Reading read(IBinder binder,BooleanSupplier stopped,Runnable validated) throws Exception {
+        Object feature=feature(binder,stopped); validated.run();
+        return status.read(feature,stopped);
+    }
+    Object feature(IBinder binder,BooleanSupplier stopped) throws Exception {
         if(stopped.getAsBoolean()) throw new InterruptedException();
         if(binder==null) throw new Unavailable(Outcome.NULL_BINDER);
         if(!DESCRIPTOR.equals(binder.getInterfaceDescriptor())) throw new Unavailable(Outcome.DESCRIPTOR_MISMATCH);
         if(stopped.getAsBoolean()) throw new InterruptedException();
         Object feature=asInterface.invoke(null,binder);
         if(feature==null || !contract.isInstance(feature)) throw new Unavailable(Outcome.INVALID_FEATURE);
-        validated.run();
-        return status.read(feature,stopped);
+        return feature;
+    }
+    FactoryDiscoveryContract discovery() throws Exception {
+        return new FactoryDiscoveryContract(contract,Class.forName("com.bt.BTDefine",false,loader),Class.forName("com.bt.BTDevice",false,loader));
+    }
+    /** Metadata only: discovers possible vendor BLE paths without invoking an unverified BLE API. */
+    @SuppressWarnings("deprecation")
+    String bleDefinitions() {
+        StringBuilder out=new StringBuilder("Resolved factory BLE/GATT definitions (metadata only; support unverified)\n");
+        if(targetPaths==null) return out+"No resolved target APK\n";
+        long deadline=android.os.SystemClock.elapsedRealtime()+500;
+        List<String> names=new ArrayList<>(); int entries=0;
+        try {
+            for(String path:targetPaths) {
+                if(android.os.SystemClock.elapsedRealtime()>=deadline || Thread.currentThread().isInterrupted() || entries>=20000) break;
+                DexFile dex=new DexFile(path);
+                try {
+                    java.util.Enumeration<String> inventory=dex.entries();
+                    while(inventory.hasMoreElements() && entries++<20000 && android.os.SystemClock.elapsedRealtime()<deadline && !Thread.currentThread().isInterrupted()) {
+                        String name=BluetoothInspectionPlan.contract(inventory.nextElement());
+                        if(name!=null && BluetoothInspectionPlan.hasBleMarker(name) && names.size()<6 && !names.contains(name)) names.add(name);
+                    }
+                } finally { dex.close(); }
+            }
+            ClassLoader target=new PathClassLoader(String.join(File.pathSeparator,targetPaths),ClassLoader.getSystemClassLoader());
+            for(String name:names) {
+                if(android.os.SystemClock.elapsedRealtime()>=deadline || Thread.currentThread().isInterrupted()) break;
+                try { out.append(BluetoothSdkSchema.inspect(Class.forName(name,false,target),700,()->android.os.SystemClock.elapsedRealtime()>=deadline || Thread.currentThread().isInterrupted()).text); }
+                catch(ReflectiveOperationException | LinkageError | RuntimeException error) { out.append("BLE type metadata unavailable\n"); }
+                if(out.length()>2200) break;
+            }
+            out.append("Matching candidate names: ").append(names.size()).append("; metadata budget 500 ms. Missing definitions do not prove absence of BLE/GATT support.\n");
+        } catch(Exception | LinkageError error) { out.append("Target BLE metadata unavailable\n"); }
+        return BluetoothDiagnostics.safe(out.toString(),2500);
     }
     /** Instance/intent construction is not allowed to create a hidden SDK-owned binding or receiver. */
     private static final class DefinitionContext extends ContextWrapper {

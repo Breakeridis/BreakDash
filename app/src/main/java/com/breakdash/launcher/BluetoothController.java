@@ -24,6 +24,7 @@ import com.breakdash.launcher.core.BluetoothSession;
 import com.breakdash.launcher.core.BluetoothSession.Reason;
 import com.breakdash.launcher.core.BluetoothSession.State;
 import com.breakdash.launcher.core.BluetoothDiscovery;
+import com.breakdash.launcher.core.FactoryDiscoveryContract;
 import java.util.List;
 
 /** Only the visible Bluetooth page owns this controller. No service, reconnect, reads or writes. */
@@ -32,10 +33,10 @@ final class BluetoothController {
     static final class Device {
         final BluetoothDevice handle;
         String name="Unnamed device"; int type,bond; Integer rssi;
-        boolean classic,ble;
+        boolean classic,ble,factory;
         Device(BluetoothDevice handle) { this.handle=handle; }
         String state() { return bond==BluetoothDevice.BOND_BONDED ? "Paired" : bond==BluetoothDevice.BOND_BONDING ? "Pairing" : "Discovered"; }
-        String transport() { return classic && ble || type==BluetoothDevice.DEVICE_TYPE_DUAL ? "Classic + BLE" : ble || type==BluetoothDevice.DEVICE_TYPE_LE ? "BLE" : classic || type==BluetoothDevice.DEVICE_TYPE_CLASSIC ? "Classic" : "Unknown transport"; }
+        String transport() { return classic && ble || type==BluetoothDevice.DEVICE_TYPE_DUAL ? "Classic + BLE" : ble || type==BluetoothDevice.DEVICE_TYPE_LE ? "BLE" : classic || type==BluetoothDevice.DEVICE_TYPE_CLASSIC ? "Classic" : factory ? "Factory · transport unverified" : "Unknown transport"; }
     }
     private final BluetoothDiscovery<BluetoothDevice,Device> inventory=new BluetoothDiscovery<>();
     final List<Device> devices=inventory.rows();
@@ -48,6 +49,9 @@ final class BluetoothController {
     private BluetoothAdapter adapter;
     private BluetoothLeScanner scanner;
     private ScanCallback scanCallback;
+    private BluetoothAdapter.LeScanCallback legacyCallback;
+    private String scanDriver="NONE";
+    private int bleObservations;
     private BroadcastReceiver classicReceiver;
     private BluetoothGatt gatt;
     private Device pairing;
@@ -124,10 +128,19 @@ final class BluetoothController {
     }
     private void renderChanged() { uiPending=false; if(visible) changed.run(); }
     private void notifyUi() { if(visible && !uiPending) { uiPending=true; handler.postDelayed(update,200); } }
-    private void save() { BluetoothDiagnostics.probe(context,operation,session.evidence()+"Devices listed (cap 32): "+devices.size()+"\n"+schema); }
+    private void save() { BluetoothDiagnostics.probe(context,operation,"Scan driver: "+scanDriver+"\n"+session.evidence()+"Devices listed (cap 32): "+devices.size()+"\nBLE observations: "+bleObservations+"\n"+schema,scanDriver); }
+    void importFactory(List<FactoryDiscoveryContract.Device> results) {
+        if(!visible || !BluetoothDiagnostics.connectAllowed(context) || adapter==null) return;
+        for(FactoryDiscoveryContract.Device result:results) try {
+            Device row=add(adapter.getRemoteDevice(result.address),null,false,false,result.name);
+            if(row!=null) row.factory=true;
+        } catch(RuntimeException ignored) {}
+        notifyUi();
+    }
     private boolean prepare(State operation,boolean scan) {
         if(!visible) return false;
         stop(Reason.USER_STOP); token=session.begin(operation,now()); schema="";
+        if(!scan) scanDriver="NONE";
         this.operation=operation;
         try {
             adapter=BluetoothDiagnostics.adapter(context);
@@ -142,21 +155,44 @@ final class BluetoothController {
         } catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"Bluetooth operation unavailable on this firmware"); return false; }
     }
     void scan(boolean ble) {
+        scan(ble,false);
+    }
+    @SuppressWarnings("deprecation")
+    void scan(boolean ble,boolean compatibility) {
+        stop(Reason.USER_STOP);
+        scanDriver=ble ? compatibility ? "BLE_COMPAT" : "BLE_MODERN" : "ANDROID_CLASSIC";
+        bleObservations=0;
         if(!prepare(ble ? State.BLE_SCAN : State.CLASSIC_SCAN,true)) return;
         final long revision=token;
         inventory.clear(); refreshPaired();
         try {
             if(ble) {
                 if(!context.getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE)) { fail(Reason.MISSING_HARDWARE,0,"Android reports BLE as unavailable"); return; }
+                if(compatibility) {
+                    legacyCallback=(device,rssi,record)->handler.post(()->{
+                        if(visible && session.accepts(revision)) try { bleObservations++; add(device,rssi,false,true); notifyUi(); }
+                        catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"Compatibility BLE result unavailable"); }
+                    });
+                    schema="Compatibility BLE API does not expose asynchronous scan failure callbacks. No results do not establish a healthy scanner.\n";
+                    if(!adapter.startLeScan(legacyCallback)) { fail(Reason.REJECTED,0,"Compatibility BLE start was rejected by Android"); return; }
+                    status="Scanning BLE compatibility · up to 12 seconds"; save(); notifyUi(); return;
+                }
                 scanner=adapter.getBluetoothLeScanner();
                 if(scanner==null) { fail(Reason.MISSING_HARDWARE,0,"Android BLE scanner unavailable"); return; }
                 scanCallback=new ScanCallback() {
                     @Override public void onScanResult(int callbackType,ScanResult result) {
-                        handler.post(()->{ if(visible && session.accepts(revision)) try { add(result.getDevice(),result.getRssi(),false,true,result.getScanRecord()==null ? null : result.getScanRecord().getDeviceName()); notifyUi(); } catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"BLE result unavailable"); } });
+                        handler.post(()->{ if(visible && session.accepts(revision)) try { bleObservations++; add(result.getDevice(),result.getRssi(),false,true,result.getScanRecord()==null ? null : result.getScanRecord().getDeviceName()); notifyUi(); } catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"BLE result unavailable"); } });
+                    }
+                    @Override public void onBatchScanResults(List<ScanResult> results) {
+                        handler.post(()->{
+                            if(!visible || !session.accepts(revision)) return;
+                            try { for(int i=0;i<Math.min(results.size(),32);i++) { ScanResult result=results.get(i); bleObservations++; add(result.getDevice(),result.getRssi(),false,true,result.getScanRecord()==null ? null : result.getScanRecord().getDeviceName()); } notifyUi(); }
+                            catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"BLE batch unavailable"); }
+                        });
                     }
                     @Override public void onScanFailed(int code) { handler.post(()->{ if(visible && session.accepts(revision)) fail(Reason.SCAN_ERROR,code,code==ScanCallback.SCAN_FAILED_INTERNAL_ERROR ? "Android BLE scan could not start · internal error (3). Capture Bluetooth-manager status in Diagnostics." : "BLE scan failed · status "+code); }); }
                 };
-                scanner.startScan(null,new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),scanCallback);
+                scanner.startScan(null,new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(0).build(),scanCallback);
                 status="Scanning BLE · up to 12 seconds";
             } else {
                 classicStarted=false;
@@ -242,7 +278,7 @@ final class BluetoothController {
     private void deadline() {
         if(!visible || !session.accepts(token)) return;
         if(session.remaining(now())>0) { handler.postDelayed(deadline,session.remaining(now())); return; }
-        if(session.state()==State.BLE_SCAN || session.state()==State.CLASSIC_SCAN) complete(Reason.SCAN_FINISHED,"Scan finished · "+devices.size()+" devices listed (maximum 32)");
+        if(session.state()==State.BLE_SCAN || session.state()==State.CLASSIC_SCAN) complete(Reason.SCAN_FINISHED,scanDriver.equals("BLE_COMPAT") && bleObservations==0 ? "Compatibility BLE ended without advertisements · asynchronous errors are not reported by this API" : "Scan finished · "+devices.size()+" devices listed (maximum 32)");
         else if(session.timeout(token,now())) finishExpired();
     }
     private void finishExpired() { save(); cleanup(); status="Bluetooth operation timed out"; notifyUi(); }
@@ -253,10 +289,13 @@ final class BluetoothController {
         if(running) { save(); status=reason==Reason.HIDDEN ? "Paused · choose an operation to resume" : "Stopped · connection released"; }
         cleanup(); notifyUi();
     }
+    @SuppressWarnings("deprecation")
     private void cleanup() {
         handler.removeCallbacks(deadline);
         if(scanner!=null && scanCallback!=null) try { scanner.stopScan(scanCallback); } catch(RuntimeException ignored) {}
         scanner=null; scanCallback=null;
+        if(legacyCallback!=null && adapter!=null) try { adapter.stopLeScan(legacyCallback); } catch(RuntimeException ignored) {}
+        legacyCallback=null;
         if(classicReceiver!=null) { try { context.unregisterReceiver(classicReceiver); } catch(RuntimeException ignored) {} classicReceiver=null; }
         if(ownClassic && adapter!=null) try { adapter.cancelDiscovery(); } catch(RuntimeException ignored) {}
         ownClassic=false; pairing=null;

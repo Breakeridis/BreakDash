@@ -37,4 +37,11 @@ public class FactoryBluetoothProbeStateTest {
         assertTrue(result.contains("Cleanup could not be confirmed")); assertFalse(result.contains("SYNTHETIC-PRIVATE"));
         assertTrue(state.closed()); assertNull(state.finish(COMPLETE,200,""));
     }
+    @Test public void discoveryHasItsOwnDeadlineWithoutChangingStatusDeadline() {
+        FactoryBluetoothProbeState discovery=new FactoryBluetoothProbeState(0,()->{},20000);
+        discovery.advance(SCANNING,100); assertFalse(discovery.expired(13000));
+        discovery.advance(STOPPING,13000); assertTrue(discovery.finish(COMPLETE,13001,"").contains("Result: COMPLETE"));
+        FactoryBluetoothProbeState status=new FactoryBluetoothProbeState(0,()->{});
+        assertTrue(status.expired(8000));
+    }
 }
