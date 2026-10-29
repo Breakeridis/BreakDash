@@ -54,7 +54,7 @@ for (const [name, night] of [['day', false], ['night', true]]) {
             }
         }
         assert.ok(byId('bridge-motorway').filter);
-        assert.ok(byId('tunnel-motorway').paint['line-dasharray']);
+        assert.ok(byId('tunnel-motorway-casing').paint['line-dasharray']);
     });
     test(`${name}: road names grow 20%, shields and towns survive, collisions stay enabled`, () => {
         for (const original of bright.layers.filter(l => l['source-layer'] === 'transportation_name')) {
