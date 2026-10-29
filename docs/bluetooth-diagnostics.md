@@ -135,6 +135,54 @@ packages; truncated, cancelled, failed or differing schemas never deduplicate.
 This leaves later packages room for their distinct SDK implementations without
 assuming that a shared class name means identical code or an active backend.
 
+### Factory status connection
+
+v1.0.17 adds **Check factory Bluetooth status**. This explicitly returns to the
+dashboard and starts one eight-second session there. Stay on the cockpit until
+the saved-result message, then reopen Bluetooth Diagnostics to review/send it.
+Opening a panel, leaving the app or destroying the activity cancels the check
+and releases its binding. Returning to the cockpit does not restart it.
+
+The fixed, installed phone SDK must pass the existing read-only factory APK
+policy, including every split. After checking the observed method signatures,
+the adapter invokes `BTController.getInstance(Context)` and the controller's
+`getServiceIntent()` to obtain its real routing definition. This action differs
+from **Inspect vendor SDK entry points**, which still never initializes classes
+or invokes methods. The SDK receives an application-context wrapper that rejects
+SDK-owned service bindings, starts/stops, receiver registrations and ordinary
+broadcast sends during instance/intent construction. An unexpected initialization
+requirement produces a fixed failure outcome instead of leaving hidden work.
+
+Only action/package/component/categories are copied from the returned intent;
+opaque extras, URI grants and Parcelable data are not forwarded or decoded.
+Data/type/selector/clip intents are rejected. Exactly one enabled, exported,
+permitted service must resolve, and its APKs must also pass factory trust checks.
+BreakDash makes the resulting explicit service binding itself. It checks the
+Binder descriptor against `com.bt.BTFeature`, then uses that APK's own generated
+`BTFeature$Stub.asInterface(IBinder)` proxy for all status calls. No vendor Parcel
+layout, transaction number or Binder callback is implemented by BreakDash.
+
+Reads are limited to six observed boolean power/profile getters and four
+zero-argument integer state/feature getters. Signatures must match primitive
+return types and instance methods. Missing/failing getters produce fixed
+unavailable markers; exception messages, object dumps, PINs, device identities,
+contacts and phone data are excluded. Integer vendor state meanings remain
+unknown. SDK routing names, stage timings, fixed outcomes and the allowed status
+values are saved in a separate 1.6 KB section within the 40 KB Bluetooth cap.
+
+The adapter does not use the SDK's connect/disconnect helpers or register its
+PIM callbacks: it owns the Android connection directly. It issues no discovery,
+pairing, power, reset, phone, music or SPP/vehicle commands. A successful status
+check establishes factory-service access, not BLE scanning or KW906 compatibility.
+It does not require root, local ADB or Android's DUMP permission.
+
+SDK initialization and synchronous reads run on one temporary HandlerThread,
+with a main-thread deadline and cleanup. Android binding callbacks remain on
+the main thread. A synchronous vendor call may ignore interruption; late results
+are discarded, the session unbinds and requests worker shutdown, and a global
+in-flight guard prevents accumulating more workers until that call returns.
+No periodic retry, polling or always-on service is introduced.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -154,6 +202,9 @@ Controller-parent regressions cover the narrow utility-helper exception,
 inherited lifecycle/callback definitions, static factories with other names,
 and refusing to deduplicate incomplete or differing schemas. Fixtures contain
 synthetic definitions only; factory APKs and real feedback never enter CI.
+Factory-status regressions verify primitive getter allowlisting, signature
+rejection, private-data/control exclusion, exception privacy, cancellation,
+deadline precedence, exactly-once cleanup and rejection of late completions.
 
 Device acceptance:
 
@@ -193,6 +244,13 @@ Device acceptance:
     reference only identical complete captured schemas and retain differences.
     New scan, manager and inspection captures should show the producing version;
     saved older scan timestamps must not imply a fresh post-update attempt.
+11. Tap **Check factory Bluetooth status**, wait on the dashboard for the result,
+    reopen Diagnostics and send feedback. Check success/partial and fixed failure
+    stages. Open another panel or background during SDK preparation, binding
+    and reading: confirm cancellation, no binding while covered, no late status
+    overwrite and no automatic restart. Repeat after completion and check that
+    stalled work reports busy without adding workers. Confirm factory phone,
+    music, radio, maps and USB behavior remain intact on the head unit.
 
 The next implementation follows the reported interfaces and transport. Do not
 guess vendor callback layouts, characteristic UUIDs, pairing PINs or OBD frames.

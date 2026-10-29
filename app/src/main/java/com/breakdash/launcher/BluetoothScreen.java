@@ -116,6 +116,8 @@ final class BluetoothScreen {
     private void diagnostics() {
         text("After scanning, inspect factory Bluetooth classes and capture Android Bluetooth status, then send feedback. Internal scan error (3) means Android could not start the scan; no scanner connection was attempted.");
         boolean busy=inspection!=null || managerJob!=null;
+        Button factoryStatus=action("Check factory Bluetooth status",main::checkFactoryBluetooth); factoryStatus.setEnabled(!busy);
+        text("Returns to the dashboard for a check lasting up to 8 seconds. Stay there until it finishes, then reopen Diagnostics. Reads factory power/profile status; no pairing, calls, music controls or vehicle commands.");
         Button inspect=action(inspection==null ? "Inspect vendor SDK entry points" : "Inspecting…",this::inspect); inspect.setEnabled(!busy);
         if(!inspectionStatus.isEmpty()) text(inspectionStatus);
         Button capture=action("Capture Android Bluetooth status",()->captureManager(false)); capture.setEnabled(!busy);

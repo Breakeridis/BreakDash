@@ -36,6 +36,7 @@ public final class MainActivity extends Activity {
     private final NavigationDiagnostics navigationTrace=new NavigationDiagnostics();
     Prefs prefs; Ui ui; Panels panels; AppCatalog catalog; SystemTools system;
     RadioController radio; MapPortal portal;
+    private FactoryBluetoothProbe factoryBluetoothProbe;
     List<AppCatalog.App> apps=new ArrayList<>();
     Downloads.Release release;
     private Tasks.Scope life,visible,pinnedRouteScope;
@@ -346,11 +347,27 @@ public final class MainActivity extends Activity {
             if(show) {
                 visible=tasks.scope(); radio.start(); tasks.main.post(tick); maybeCheckUpdate();
             } else {
+                cancelFactoryBluetoothCheck();
                 if(pinRouting) { cancelPinnedRoute(); renderLocation(); }
                 radio.stop(); tasks.main.removeCallbacks(tick); if(visible!=null) visible.close();
             }
         }
         panels.visibilityChanged(resumed);
+    }
+    void checkFactoryBluetooth() {
+        panels.close();
+        if(!dashboardActive) { toast("Return to the dashboard to check factory Bluetooth"); return; }
+        if(factoryBluetoothProbe!=null) { toast("Factory Bluetooth check is already running"); return; }
+        factoryBluetoothProbe=new FactoryBluetoothProbe(this,result->{
+            factoryBluetoothProbe=null; BluetoothDiagnostics.factoryStatus(this,result);
+            if(resumed && dashboardActive) toast("Factory Bluetooth result saved · open Bluetooth Diagnostics");
+        });
+        toast("Checking factory Bluetooth · stay on the dashboard for up to 8 seconds");
+        factoryBluetoothProbe.start();
+    }
+    private void cancelFactoryBluetoothCheck() {
+        FactoryBluetoothProbe probe=factoryBluetoothProbe;
+        if(probe!=null) { factoryBluetoothProbe=null; probe.cancel(); }
     }
     private void maybeCheckUpdate() {
         String repository=prefs.get("repository",BuildConfig.GITHUB_REPOSITORY);
@@ -373,5 +390,5 @@ public final class MainActivity extends Activity {
     @Override public void onLowMemory() { super.onLowMemory(); portal.mapView.onLowMemory(); catalog.clearIcons(); }
     @Override public void onTrimMemory(int level) { super.onTrimMemory(level); if(level>=TRIM_MEMORY_RUNNING_LOW) { portal.mapView.onLowMemory(); catalog.clearIcons(); } }
     @Override public void onBackPressed() { if(!panels.empty()) panels.closeTop(); }
-    @Override protected void onDestroy() { navigationTrace.event("destroy",null); resumed=false; cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
+    @Override protected void onDestroy() { navigationTrace.event("destroy",null); resumed=false; cancelFactoryBluetoothCheck(); cancelPinnedRoute(); panels.close(); radio.stop(); portal.destroy(); life.close(); if(visible!=null) visible.close(); tasks.close(); super.onDestroy(); }
 }
