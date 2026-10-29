@@ -30,8 +30,20 @@ public class BluetoothInspectionPlanTest {
     }
     @Test public void invalidNamesAndUnrelatedPackagesAreNotInspectionTargets() {
         for(String name:new String[]{null,"","com.demo.bluetooth.Name\nsecret","com.demo.bluetooth.A/B","com.demo.other.Api","java.bluetooth.Example"}) assertNull(BluetoothInspectionPlan.contract(name));
-        assertEquals(0,BluetoothInspectionPlan.methodPriority("startBleScan"));
-        assertEquals(0,BluetoothInspectionPlan.methodPriority("getConnectionState"));
-        assertEquals(1,BluetoothInspectionPlan.methodPriority("onCreate"));
+        assertEquals(1,BluetoothInspectionPlan.methodPriority("startBleScan"));
+        assertEquals(3,BluetoothInspectionPlan.methodPriority("getConnectionState"));
+        assertEquals(4,BluetoothInspectionPlan.methodPriority("onCreate"));
+    }
+    @Test public void observedEntryPointsAndBleSurviveConstantsAndAlternateBackends() {
+        BluetoothInspectionPlan plan=new BluetoothInspectionPlan();
+        for(int i=0;i<100;i++) { plan.offer("com.bt.BTConstant$Feature"+i); plan.offer("com.bt.bc03.Manager"+i); }
+        plan.offer("com.bt.hd.link.BluetoothAPI"); plan.offer("com.bt.hd.link.AbsServiceControllerHelper");
+        plan.offer("com.bt.BTFeature"); plan.offer("com.bt.BTSourceFeature"); plan.offer("com.bt.vendor.BleManager");
+        assertEquals("com.bt.hd.link.BluetoothAPI",plan.names().get(0));
+        assertTrue(plan.names().contains("com.bt.BTSourceFeature"));
+        assertTrue(plan.names().contains("com.bt.vendor.BleManager"));
+        assertFalse(BluetoothInspectionPlan.hasBleMarker("enableBluetooth"));
+        assertTrue(BluetoothInspectionPlan.methodPriority("getInstance")<BluetoothInspectionPlan.methodPriority("startBleScan"));
+        assertTrue(BluetoothInspectionPlan.methodPriority("startBleScan")<BluetoothInspectionPlan.methodPriority("btReset"));
     }
 }

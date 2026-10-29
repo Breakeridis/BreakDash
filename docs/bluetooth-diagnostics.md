@@ -27,7 +27,7 @@ from this stage; this release does not implement vehicle commands.
 
 ## Diagnostic evidence and privacy
 
-**Diagnostics → Inspect factory interfaces** runs a bounded read-only inspection
+**Diagnostics → Inspect vendor SDK entry points** runs a bounded read-only inspection
 of the known NWD phone, Bluetooth music, kernel and settings packages. It reports
 versions, service names, export/enabled flags and required permissions. Interface
 signatures are inspected only from installed read-only factory APKs accepted by
@@ -45,13 +45,24 @@ budget checked between operations. An individual Android metadata/class-loading 
 preemptible; cancellation interrupts the worker and prevents accepting its result.
 Unavailable packages/classes and exhausted budgets are reported explicitly.
 
+The v1.0.15 inspector prioritizes the observed `com.bt.hd.link.BluetoothAPI`,
+service-controller helper and callback, `BTFeature`, `BTSourceFeature` and SPP
+callback definitions. Constants cannot crowd them out. It records declared
+constructors, static factories/initialization methods, superclass/interfaces,
+inherited vendor methods and callback argument/return types. Relevant field
+names/types are metadata only; values are never read. BLE/GATT/discovery methods
+rank ahead of ordinary control methods and resets. Up to 16 related vendor types
+per inspected class can extend the candidate list to 32, with at most 24 inspected
+types per package and the same five-second cooperative limit. Class presence does
+not identify the active Bluetooth backend or establish a usable BLE transport.
+
 Bluetooth feedback includes a passive adapter/location/permission snapshot,
 MAXOBD/BreakDash versions and declared/granted relevant permissions, separate last
 Classic/BLE scan summaries, the latest operation stages/timings/numeric statuses,
 and explicitly collected factory data. Android 12+ scan/connect permissions are
 labeled not applicable on Android 10/11. Internal scan error 3 is explained as a
 scan-start failure, not an OBD connection error.
-The total Bluetooth section is capped at 16 KB. Results are saved in app-private
+The total Bluetooth section is capped at 24 KB. Results are saved in app-private
 preferences until replaced or cleared; no device identity is persisted there.
 
 Names and addresses appear only in the local device UI. Reports omit device names,
@@ -94,6 +105,14 @@ connection history, other packages and unknown formats are omitted. No recognize
 fields, missing service, timeouts and permission denial are explicit outcomes.
 Capturing feedback itself never executes dumpsys or opens ADB.
 
+App-process and local-ADB captures are now saved independently, with their own
+timestamps. Every result retains its method and stage, including failures. A
+closed loopback port is identified before attempting ADB authorization; an open
+port alone does not prove ADB authorization. Connection/authorization failures
+and status-read failures are distinguished without retaining exception messages.
+The old single capture is shown as legacy evidence with an unknown method until
+a new capture is saved. Clearing history removes both new captures and the old one.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -105,6 +124,10 @@ Additional synthetic regressions verify that Bluetooth classes outside the NWD
 namespace outrank unrelated CAN/settings classes, selection remains bounded,
 Stub aliases deduplicate, and the native manager projection retains status while
 rejecting device identities, history, unknown fields and arbitrary exception text.
+Synthetic SDK fixtures also verify that constructor/static-factory/inherited and
+callback definitions are captured without class initialization or invocation;
+small text budgets and cancellation remain bounded. Capture regressions verify
+method/stage attribution, listener/authorization/read failures and privacy.
 
 Device acceptance:
 
@@ -134,6 +157,11 @@ Device acceptance:
    authorize through the setup page and explicitly capture through local ADB.
    Cancel/close during each capture and confirm no late result is saved; clearing
    diagnostic history must clear both scan summaries and native/factory captures.
+9. Run **Inspect vendor SDK entry points** and check for initialization, helper,
+   callback and BLE/GATT definitions, or explicit missing/budget results. Capture
+   app status followed by optional ADB status and confirm both remain in feedback.
+   A stopped ADB daemon should report the listener stage; failed authorization
+   should report the connection stage. Neither result proves BLE incapability.
 
 The next implementation follows the reported interfaces and transport. Do not
 guess vendor callback layouts, characteristic UUIDs, pairing PINs or OBD frames.

@@ -28,8 +28,8 @@ final class BluetoothDiagnostics {
         if(operation==State.CLASSIC_SCAN || operation==State.BLE_SCAN) edit.putString(operation==State.CLASSIC_SCAN ? "classic" : "ble",safe(value,400));
         edit.apply();
     }
-    static void factory(Context context,String summary) { store(context).edit().putString("factory",safe("Captured: "+new Date()+"\n"+summary,6000)).apply(); }
-    static void manager(Context context,String summary) { store(context).edit().putString("manager",safe("Captured: "+new Date()+"\n"+summary,2200)).apply(); }
+    static void factory(Context context,String summary) { store(context).edit().putString("factory",safe("Captured: "+new Date()+"\n"+summary,13000)).apply(); }
+    static void manager(Context context,boolean adb,String summary) { store(context).edit().putString(adb ? "manager_adb" : "manager_app",safe("Captured: "+new Date()+"\n"+summary,1400)).apply(); }
     static void clear(Context context) { store(context).edit().clear().apply(); }
     static String safe(String text,int limit) {
         String value=ReportPrivacy.text(text).replaceAll("[^\\x09\\x0A\\x0D\\x20-\\x7E]","?");
@@ -99,8 +99,10 @@ final class BluetoothDiagnostics {
                 +"\nLAST CLASSIC SCAN\n"+safe(saved.getString("classic","Not captured since this update."),400)
                 +"\nLAST BLE SCAN\n"+safe(saved.getString("ble","Not captured since this update."),400)
                 +"\nLAST BLUETOOTH OPERATION\n"+safe(saved.getString("probe","No probe captured."),4300)
-                +"\nANDROID BLUETOOTH MANAGER\n"+safe(saved.getString("manager","Not captured. Use the explicit status capture button."),2200)
-                +"\nFACTORY INTERFACE INSPECTION\n"+safe(saved.getString("factory","Not inspected. Use Bluetooth > Diagnostics > Inspect factory interfaces."),6000)+"\n";
-        return safe(report,16384);
+                +"\nANDROID BLUETOOTH MANAGER: APP PROCESS\n"+safe(saved.getString("manager_app","Not captured. Use the explicit status capture button."),1400)
+                +"\nANDROID BLUETOOTH MANAGER: LOCAL ADB\n"+safe(saved.getString("manager_adb","Not captured. Local ADB is optional."),1400)
+                +(!saved.contains("manager_app") && !saved.contains("manager_adb") && saved.contains("manager") ? "\nLEGACY MANAGER CAPTURE (method not recorded)\n"+safe(saved.getString("manager",""),1400) : "")
+                +"\nFACTORY INTERFACE INSPECTION\n"+safe(saved.getString("factory","Not inspected. Use Bluetooth > Diagnostics > Inspect vendor SDK entry points."),13000)+"\n";
+        return safe(report,24576);
     }
 }

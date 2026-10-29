@@ -1,6 +1,7 @@
 package com.breakdash.launcher;
 
-import com.breakdash.launcher.core.BluetoothManagerSummary;
+import com.breakdash.launcher.core.BluetoothCaptureEvidence;
+import com.breakdash.launcher.core.BluetoothCaptureEvidence.Stage;
 import dadb.Dadb;
 
 /** Explicit, finite read of one fixed service; raw output lives only in the worker until projected. */
@@ -8,23 +9,26 @@ final class BluetoothManagerCapture implements AutoCloseable {
     private boolean closed;
     private Dadb connection;
     String read(SystemTools system,boolean useAdb) throws InterruptedException {
+        Stage stage=useAdb ? Stage.LISTENER : Stage.READ;
         try {
             if(Thread.currentThread().isInterrupted() || isClosed()) throw new InterruptedException();
             String raw;
             if(useAdb) {
+                if(!system.portOpen()) return BluetoothCaptureEvidence.listenerUnavailable();
+                if(Thread.currentThread().isInterrupted() || isClosed()) throw new InterruptedException();
+                stage=Stage.CONNECT;
                 Dadb adb=system.bluetoothDiagnosticConnection();
                 synchronized(this) { if(closed) { adb.close(); throw new InterruptedException(); } connection=adb; }
+                stage=Stage.READ;
                 // Fixed read-only command, server-side timeout and output limit. No user input is interpolated.
                 raw=adb.shell("dumpsys -t 4 bluetooth_manager | head -c 65536").getAllOutput();
             } else raw=SystemTools.process(new String[]{"/system/bin/dumpsys","-t","4","bluetooth_manager"},6);
             if(Thread.currentThread().isInterrupted() || isClosed()) throw new InterruptedException();
-            return "Capture method: "+(useAdb ? "authorized local ADB" : "app process")+"\n"+BluetoothManagerSummary.parse(raw);
+            return BluetoothCaptureEvidence.summary(useAdb,raw);
         } catch(InterruptedException error) { throw error; }
         catch(Exception error) {
-            if(isClosed()) throw new InterruptedException();
-            String projected=BluetoothManagerSummary.parse(error.getMessage());
-            if(!useAdb && (projected.startsWith("Bluetooth-manager capture denied") || projected.startsWith("Android bluetooth_manager service not found") || projected.startsWith("Bluetooth-manager dump timed out"))) return projected;
-            return "Bluetooth-manager capture unavailable: "+error.getClass().getSimpleName()+". Use local ADB only after enabling TCP debugging and authorizing this app on the head unit.\n";
+            if(isClosed() || Thread.currentThread().isInterrupted()) throw new InterruptedException();
+            return BluetoothCaptureEvidence.failure(useAdb,stage,error);
         } finally { close(); }
     }
     private synchronized boolean isClosed() { return closed; }

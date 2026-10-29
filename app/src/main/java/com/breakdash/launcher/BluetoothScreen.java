@@ -116,7 +116,7 @@ final class BluetoothScreen {
     private void diagnostics() {
         text("After scanning, inspect factory Bluetooth classes and capture Android Bluetooth status, then send feedback. Internal scan error (3) means Android could not start the scan; no scanner connection was attempted.");
         boolean busy=inspection!=null || managerJob!=null;
-        Button inspect=action(inspection==null ? "Inspect factory Bluetooth interfaces" : "Inspecting…",this::inspect); inspect.setEnabled(!busy);
+        Button inspect=action(inspection==null ? "Inspect vendor SDK entry points" : "Inspecting…",this::inspect); inspect.setEnabled(!busy);
         if(!inspectionStatus.isEmpty()) text(inspectionStatus);
         Button capture=action("Capture Android Bluetooth status",()->captureManager(false)); capture.setEnabled(!busy);
         text("Ordinary capture may be denied by Android. Optional local ADB capture uses one read-only status command and requires TCP debugging plus Android authorization. It does not enable debugging or change Bluetooth settings.");
@@ -150,8 +150,8 @@ final class BluetoothScreen {
         managerJob.run(()->request.read(main.system,useAdb),result->{
             if(managerJob!=null) { managerJob.close(); managerJob=null; } managerCapture=null;
             if(!panel.top()) return;
-            BluetoothDiagnostics.manager(main,result);
-            managerStatus=result.contains("capture denied") ? "Capture denied by Android · try optional local ADB access" : result.contains("capture unavailable") ? "Capture unavailable · see saved status below" : "Bluetooth-manager summary saved for feedback";
+            BluetoothDiagnostics.manager(main,useAdb,result);
+            managerStatus="Status capture saved · see result below";
             render();
         },error->{ request.close(); if(managerJob!=null) { managerJob.close(); managerJob=null; } managerCapture=null; managerStatus="Capture cancelled or unavailable"; render(); });
         render();
