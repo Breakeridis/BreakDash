@@ -2,6 +2,7 @@ package com.breakdash.launcher;
 
 import android.location.Location;
 import com.breakdash.launcher.core.RouteProgress;
+import com.breakdash.launcher.core.NavigationGuidance;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -33,23 +34,22 @@ final class Navigation {
                 if (i < geometry.size()-1) remaining[i] = remaining[i+1] + RouteProgress.distance(coordinates[i][0], coordinates[i][1], coordinates[i+1][0], coordinates[i+1][1]);
             }
         }
-        String guidance(Location fix, boolean mph) {
+        NavigationGuidance guidance(Location fix, boolean mph) {
             RouteProgress position = RouteProgress.locate(coordinates, remaining, fix.getLatitude(), fix.getLongitude(), progress);
             progress = position.segment;
-            if (position.offRouteMeters > Math.max(80, fix.getAccuracy()*2)) return "Off route · search again to recalculate";
-            if (position.remainingMeters < 35 && RouteProgress.distance(fix.getLatitude(), fix.getLongitude(), destination.lat, destination.lon) < 50) return "You have arrived · " + destination.name;
+            if (position.offRouteMeters > Math.max(80, fix.getAccuracy()*2)) return NavigationGuidance.offRoute(destination.name);
+            if (position.remainingMeters < 35 && RouteProgress.distance(fix.getLatitude(), fix.getLongitude(), destination.lat, destination.lon) < 50) return NavigationGuidance.arrived(destination.name);
             Step next = steps.get(steps.size()-1);
             double normalized = position.remainingMeters * distance / Math.max(1, remaining[0]);
             for (Step step : steps) if (step.remaining < normalized - 15) { next = step; break; }
-            return distance(Math.max(0, normalized - next.remaining), mph) + " · " + next.instruction + "\n" + distance(normalized, mph) + " to " + destination.name;
+            return NavigationGuidance.active(Math.max(0,normalized-next.remaining),normalized,next.instruction,destination.name,mph);
         }
     }
     private static void requireOnline(Prefs prefs) {
         if (!prefs.data.getBoolean("online_maps", false)) throw new IllegalStateException("Connect online maps first");
     }
     static String distance(double meters, boolean mph) {
-        if (mph) return meters < 160.9 ? String.format(Locale.US, "%.0f ft", meters*3.28084) : String.format(Locale.US, "%.1f mi", meters/1609.344);
-        return meters < 1000 ? String.format(Locale.US, "%.0f m", meters) : String.format(Locale.US, "%.1f km", meters/1000);
+        return NavigationGuidance.distance(meters,mph);
     }
     static List<Place> search(Prefs prefs, String query, Location fix) throws Exception {
         requireOnline(prefs);

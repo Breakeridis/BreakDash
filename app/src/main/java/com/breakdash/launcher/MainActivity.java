@@ -6,7 +6,6 @@ import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Typeface;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
@@ -21,9 +20,12 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.breakdash.launcher.core.RadioFrequency;
+import com.breakdash.launcher.core.ThemePalette;
+import com.breakdash.launcher.core.NavigationGuidance;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -38,11 +40,11 @@ public final class MainActivity extends Activity {
     Downloads.Release release;
     private Tasks.Scope life,visible,pinnedRouteScope;
     private boolean resumed,dashboardActive,updateAttempted,pinRouting;
-    private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,updates;
+    private TextView clock,seconds,date,frequency,radioStatus,metadata,heading,speed,unit,gps,guidance,updates,turnDistance,turnInstruction,routeDetail;
     private Button radioPower,radioRefresh,recenter,navigate,cancelNavigation;
     private final Button[] presets=new Button[6];
     private LinearLayout favorites;
-    private LinearLayout navigationFooter;
+    private LinearLayout navigationFooter,routeBanner;
     private final java.util.Map<String,TextView> tileCaptions=new java.util.HashMap<>(),tileHints=new java.util.HashMap<>();
     private String gpsMessage="Acquiring satellites";
     private final Runnable tick=new Runnable() {
@@ -56,9 +58,10 @@ public final class MainActivity extends Activity {
         }
     };
     @Override public void onCreate(Bundle state) {
+        prefs=new Prefs(this); setTheme(prefs.light() ? R.style.AppThemeDay : R.style.AppTheme);
         super.onCreate(state);
         navigationTrace.event("create",getIntent());
-        prefs=new Prefs(this); ui=new Ui(this,prefs.light()); catalog=new AppCatalog(this); system=new SystemTools(this);
+        ui=new Ui(this,prefs.light()); catalog=new AppCatalog(this); system=new SystemTools(this);
         panels=new Panels(this); life=tasks.scope();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         immersive();
@@ -80,86 +83,93 @@ public final class MainActivity extends Activity {
     }
     String navigationDiagnostics() { return navigationTrace.collect(this); }
     private void buildDashboard(Bundle state) {
+        float fontScale=getResources().getConfiguration().fontScale;
         LinearLayout left=ui.column(),right=ui.column(); FrameLayout middle=new FrameLayout(this);
         CockpitLayout root=new CockpitLayout(this,left,middle,right); root.setBackgroundColor(ui.bg);
         setContentView(new CockpitViewport(this,root,ui.bg));
 
-        TextView brand=ui.label("B R E A K D A S H   /   COCKPIT"); brand.setTextColor(ui.accent); left.addView(brand); ui.gap(left,18);
         LinearLayout timeRow=ui.row(); timeRow.setGravity(Gravity.BOTTOM);
-        clock=ui.text("--:--",70,ui.text); clock.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
-        seconds=ui.text("--",18,ui.accent); seconds.setPadding(ui.dp(8),0,0,ui.dp(12));
+        clock=ui.text("--:--",48,ui.text);
+        seconds=ui.text("--",16,ui.muted); seconds.setPadding(ui.dp(8),0,0,ui.dp(8));
         timeRow.addView(clock); timeRow.addView(seconds); left.addView(timeRow);
-        date=ui.text("",17,ui.muted); left.addView(date); ui.gap(left,20);
+        date=ui.text("",18,ui.muted); date.setSingleLine(true); date.setEllipsize(android.text.TextUtils.TruncateAt.END); left.addView(date); ui.gap(left,12);
 
-        LinearLayout tuner=ui.column(); tuner.setPadding(ui.dp(16),ui.dp(12),ui.dp(16),ui.dp(12)); tuner.setBackground(ui.surface(ui.card,ui.border,22));
+        LinearLayout tuner=ui.column(); tuner.setPadding(ui.dp(12),ui.dp(12),ui.dp(12),ui.dp(12)); tuner.setBackground(ui.surface(ui.card,ui.amber,16));
         LinearLayout stationHeader=ui.row();
-        Button station=ui.button("RADIO  ↗",()->launchPackage("com.nwd.radio")); station.setTextColor(ui.accent); station.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
-        stationHeader.addView(station,new LinearLayout.LayoutParams(0,ui.dp(60),1));
+        Button station=ui.button("RADIO ↗",()->launchPackage("com.nwd.radio")); station.setTextColor(ui.amber); station.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        stationHeader.addView(station,new LinearLayout.LayoutParams(0,ui.dp(64),1));
         radioRefresh=ui.button("↻",()->radio.refresh()); radioRefresh.setTextSize(24); radioRefresh.setContentDescription("Refresh radio connection and current station");
-        stationHeader.addView(radioRefresh,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
-        radioPower=ui.button("○",()->radio.power(!radio.state.playing)); radioPower.setContentDescription("Toggle radio audio"); stationHeader.addView(radioPower,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
+        stationHeader.addView(radioRefresh,new LinearLayout.LayoutParams(ui.dp(64),ui.dp(64)));
+        radioPower=ui.button("○",()->radio.power(!radio.state.playing)); radioPower.setTextSize(26); radioPower.setContentDescription("Toggle radio audio"); stationHeader.addView(radioPower,new LinearLayout.LayoutParams(ui.dp(64),ui.dp(64)));
         tuner.addView(stationHeader);
-        LinearLayout frequencyRow=ui.row(); frequency=ui.text("—",46,ui.text); frequency.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
-        frequencyRow.addView(frequency,new LinearLayout.LayoutParams(0,ui.dp(58),1));
-        Button band=ui.button("Band",()->radio.changeBand()); frequencyRow.addView(band,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(64))); tuner.addView(frequencyRow);
-        radioStatus=ui.text("Connecting to hardware…",12,ui.amber); radioStatus.setSingleLine(true); tuner.addView(radioStatus);
-        metadata=ui.text("NWD hardware tuner",14,ui.muted); metadata.setMaxLines(2); tuner.addView(metadata,new LinearLayout.LayoutParams(-1,ui.dp(38)));
+        LinearLayout frequencyRow=ui.row(); frequency=ui.text("—",40,ui.text);
+        frequencyRow.addView(frequency,new LinearLayout.LayoutParams(0,ui.dp(64),1));
+        Button band=ui.button("Band",()->radio.changeBand()); frequencyRow.addView(band,new LinearLayout.LayoutParams(ui.dp(72),ui.dp(64))); tuner.addView(frequencyRow);
+        radioStatus=ui.text("Connecting…",18,ui.amber); radioStatus.setSingleLine(true); radioStatus.setEllipsize(android.text.TextUtils.TruncateAt.END); tuner.addView(radioStatus);
+        metadata=ui.text("NWD hardware tuner",18,ui.muted); metadata.setMaxLines(2); metadata.setEllipsize(android.text.TextUtils.TruncateAt.END); tuner.addView(metadata,new LinearLayout.LayoutParams(-1,ui.dp(Math.max(48,48*fontScale))));
+        ui.fill(tuner);
         LinearLayout seek=ui.row(); ui.weighted(seek,ui.button("‹  Prev",()->radio.seek(false)),64); ui.weighted(seek,ui.button("Next  ›",()->radio.seek(true)),64); tuner.addView(seek);
+        TextView presetHint=ui.text("PRESETS · HOLD TO SAVE",16,ui.muted); presetHint.setTypeface(Ui.MEDIUM); tuner.addView(presetHint);
         for(int row=0;row<2;row++) {
             LinearLayout bank=ui.row();
             for(int column=0;column<3;column++) {
                 int slot=row*3+column;
-                Button preset=ui.button((slot+1)+"\n—",()->radio.tune(prefs.frequency(slot),prefs.band(slot),slot)); preset.setTextSize(13); preset.setMaxLines(2); preset.setContentDescription("Preset " + (slot+1) + ", hold to save");
+                Button preset=ui.button((slot+1)+"\n—",()->radio.tune(prefs.frequency(slot),prefs.band(slot),slot)); preset.setTextSize(18); preset.setPadding(ui.dp(4),ui.dp(4),ui.dp(4),ui.dp(4)); preset.setMaxLines(2); preset.setEllipsize(android.text.TextUtils.TruncateAt.END); preset.setContentDescription("Preset " + (slot+1) + ", hold to save");
                 preset.setOnLongClickListener(view->{
                     int value=radio.state.frequency; byte bandValue=radio.state.band;
                     if(!RadioFrequency.valid(value)) { toast("No current station to save"); return true; }
                     if(!radio.state.bandKnown) { radio.refresh(); toast("Waiting for the station band · try saving again"); return true; }
                     radio.save(slot,()->{ prefs.preset(slot,value,bandValue); view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); renderRadio(); toast("Saved preset " + (slot+1)); }); return true;
                 });
-                presets[slot]=preset; ui.weighted(bank,preset,64);
+                presets[slot]=preset; ui.weighted(bank,preset,Math.round(Math.max(64,64*fontScale)));
             }
             tuner.addView(bank);
         }
-        left.addView(tuner,new LinearLayout.LayoutParams(-1,0,1)); ui.gap(left,14);
+        ScrollView radioScroll=new ScrollView(this); radioScroll.setFillViewport(true); radioScroll.addView(tuner); left.addView(radioScroll,new LinearLayout.LayoutParams(-1,0,1)); ui.gap(left,14);
         LinearLayout dock=ui.row(); Button drawer=ui.button("▦",()->panels.appPicker("All apps",null,null)); drawer.setTextSize(28); drawer.setContentDescription("All apps"); dock.addView(drawer,new LinearLayout.LayoutParams(ui.dp(72),ui.dp(80)));
         HorizontalScrollView shelf=new HorizontalScrollView(this); shelf.setHorizontalScrollBarEnabled(false); favorites=ui.row(); shelf.addView(favorites); dock.addView(shelf,new LinearLayout.LayoutParams(0,ui.dp(80),1)); left.addView(dock);
 
         portal=new MapPortal(this,prefs,state,ignored->renderLocation(),message->{ gpsMessage=message; renderLocation(); },this::pinDestination);
-        middle.addView(portal,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER)); portal.theme(prefs.light());
+        middle.addView(portal,new FrameLayout.LayoutParams(-1,-1,Gravity.CENTER)); portal.theme(ui.palette);
 
         heading=ui.label("—° / FOLLOW"); heading.setLetterSpacing(.05f); heading.setGravity(Gravity.CENTER_VERTICAL);
         heading.setPadding(ui.dp(12),ui.dp(6),ui.dp(12),ui.dp(6)); heading.setBackground(ui.surface(ui.card,ui.border,16));
         heading.setSingleLine(true); heading.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        FrameLayout.LayoutParams headingPosition=new FrameLayout.LayoutParams(ui.dp(210),ui.dp(36),Gravity.TOP|Gravity.LEFT); headingPosition.setMargins(ui.dp(8),ui.dp(8),0,0); middle.addView(heading,headingPosition);
+        FrameLayout.LayoutParams headingPosition=new FrameLayout.LayoutParams(ui.dp(240),ui.dp(44),Gravity.TOP|Gravity.LEFT); headingPosition.setMargins(ui.dp(8),ui.dp(8),0,0); middle.addView(heading,headingPosition);
 
-        LinearLayout mapTools=ui.row();
-        recenter=ui.mapButton("◎",()->{ portal.recenter(); if(portal.fix()==null) toast("Waiting for a fresh GPS fix"); }); recenter.setTextSize(28);
-        recenter.setContentDescription("Recenter map and resume heading-up GPS tracking"); recenter.setTooltipText("Recenter"); mapTools.addView(recenter,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
-        Button search=ui.mapButton("⌕",panels::search); search.setTextSize(30); search.setContentDescription("Search destination"); search.setTooltipText("Search destination");
-        LinearLayout.LayoutParams searchPosition=new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)); searchPosition.leftMargin=ui.dp(6); mapTools.addView(search,searchPosition);
-        FrameLayout.LayoutParams toolsPosition=new FrameLayout.LayoutParams(-2,ui.dp(60),Gravity.TOP|Gravity.RIGHT); toolsPosition.setMargins(0,ui.dp(8),ui.dp(8),0); middle.addView(mapTools,toolsPosition);
+        LinearLayout mapTools=ui.column();
+        Button search=ui.mapButton("Search",panels::search); ui.primary(search); search.setContentDescription("Search destination"); mapTools.addView(search,new LinearLayout.LayoutParams(-1,ui.dp(64))); ui.gap(mapTools,8);
+        recenter=ui.mapButton("Recenter",()->{ portal.recenter(); if(portal.fix()==null) toast("Waiting for a fresh GPS fix"); });
+        recenter.setContentDescription("Recenter map and resume heading-up GPS tracking"); mapTools.addView(recenter,new LinearLayout.LayoutParams(-1,ui.dp(64)));
+        FrameLayout.LayoutParams toolsPosition=new FrameLayout.LayoutParams(ui.dp(128),-2,Gravity.TOP|Gravity.RIGHT); toolsPosition.setMargins(0,ui.dp(8),ui.dp(8),0); middle.addView(mapTools,toolsPosition);
+
+        routeBanner=ui.row(); routeBanner.setMinimumHeight(ui.dp(144)); routeBanner.setPadding(ui.dp(12),ui.dp(8),ui.dp(8),ui.dp(8)); routeBanner.setBackground(ui.surface(ui.navFill,ui.accent,14,3)); routeBanner.setClickable(true);
+        LinearLayout instructions=ui.column();
+        turnDistance=ui.text("",32,ThemePalette.ON_FILLED); turnDistance.setSingleLine(true); turnDistance.setEllipsize(android.text.TextUtils.TruncateAt.END); instructions.addView(turnDistance);
+        turnInstruction=ui.text("",24,ThemePalette.ON_FILLED); turnInstruction.setMaxLines(2); turnInstruction.setEllipsize(android.text.TextUtils.TruncateAt.END); instructions.addView(turnInstruction);
+        routeDetail=ui.text("",18,ThemePalette.ON_FILLED); routeDetail.setSingleLine(true); routeDetail.setEllipsize(android.text.TextUtils.TruncateAt.END); instructions.addView(routeDetail);
+        routeBanner.addView(instructions,new LinearLayout.LayoutParams(0,-2,1));
+        Button stop=ui.mapButton("Stop",this::clearNavigation); ui.danger(stop); LinearLayout.LayoutParams stopPosition=new LinearLayout.LayoutParams(ui.dp(64),ui.dp(64)); stopPosition.leftMargin=ui.dp(8); routeBanner.addView(stop,stopPosition);
+        FrameLayout.LayoutParams bannerPosition=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP|Gravity.LEFT); bannerPosition.setMargins(ui.dp(8),ui.dp(8),ui.dp(148),0); middle.addView(routeBanner,bannerPosition);
 
         LinearLayout speedCard=ui.row(); speedCard.setGravity(Gravity.CENTER); speedCard.setPadding(ui.dp(12),ui.dp(2),ui.dp(6),ui.dp(2)); speedCard.setBackground(ui.surface(ui.card,ui.border,20));
         speedCard.setClickable(true);
-        speed=ui.text("—",46,ui.text); speed.setMinWidth(ui.dp(84)); speed.setGravity(Gravity.CENTER); speed.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); speedCard.addView(speed);
-        Button units=ui.mapButton(prefs.mph() ? "MPH" : "KM/H",()->{ prefs.toggleUnits(); renderLocation(); }); unit=units; units.setTextSize(12); units.setTextColor(ui.accent); units.setContentDescription("Toggle speed units"); speedCard.addView(units,new LinearLayout.LayoutParams(ui.dp(60),ui.dp(60)));
+        speed=ui.text("—",56,ui.text); speed.setMinWidth(ui.dp(100)); speed.setGravity(Gravity.CENTER); speedCard.addView(speed);
+        Button units=ui.mapButton(prefs.mph() ? "MPH" : "KM/H",()->{ prefs.toggleUnits(); renderLocation(); }); unit=units; units.setTextSize(18); units.setContentDescription("Toggle speed units"); speedCard.addView(units,new LinearLayout.LayoutParams(ui.dp(72),ui.dp(72)));
         FrameLayout.LayoutParams speedPosition=new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER_HORIZONTAL|Gravity.BOTTOM); speedPosition.bottomMargin=ui.dp(8); middle.addView(speedCard,speedPosition);
 
-        gps=ui.mapButton("● GPS",this::gpsAction); gps.setTextSize(12);
-        FrameLayout.LayoutParams gpsPosition=new FrameLayout.LayoutParams(ui.dp(106),ui.dp(60),Gravity.BOTTOM|Gravity.LEFT); gpsPosition.setMargins(ui.dp(8),0,0,ui.dp(8)); middle.addView(gps,gpsPosition);
+        gps=ui.mapButton("GPS",this::gpsAction);
+        FrameLayout.LayoutParams gpsPosition=new FrameLayout.LayoutParams(ui.dp(128),ui.dp(64),Gravity.BOTTOM|Gravity.LEFT); gpsPosition.setMargins(ui.dp(8),0,0,ui.dp(8)); middle.addView(gps,gpsPosition);
 
         navigationFooter=ui.row(); navigationFooter.setPadding(ui.dp(12),ui.dp(6),ui.dp(8),ui.dp(6)); navigationFooter.setBackground(ui.surface(ui.card,ui.border,18)); navigationFooter.setClickable(true);
-        guidance=ui.text("",13,ui.text); guidance.setMaxLines(2); guidance.setEllipsize(android.text.TextUtils.TruncateAt.END); navigationFooter.addView(guidance,new LinearLayout.LayoutParams(0,-2,1));
-        navigate=ui.mapButton("Navigate",this::startPinnedNavigation); navigate.setTextColor(ui.accent); navigationFooter.addView(navigate,new LinearLayout.LayoutParams(ui.dp(88),ui.dp(60)));
-        cancelNavigation=ui.mapButton("Stop",this::clearMapTarget); cancelNavigation.setTextColor(ui.amber); LinearLayout.LayoutParams cancelPosition=new LinearLayout.LayoutParams(ui.dp(64),ui.dp(60)); cancelPosition.leftMargin=ui.dp(6); navigationFooter.addView(cancelNavigation,cancelPosition);
-        FrameLayout.LayoutParams navigationPosition=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL); navigationPosition.setMargins(ui.dp(64),0,ui.dp(64),ui.dp(88)); middle.addView(navigationFooter,navigationPosition);
+        guidance=ui.text("",18,ui.text); guidance.setMaxLines(2); guidance.setEllipsize(android.text.TextUtils.TruncateAt.END); navigationFooter.addView(guidance,new LinearLayout.LayoutParams(0,-2,1));
+        navigate=ui.mapButton("Navigate",this::startPinnedNavigation); ui.primary(navigate); navigationFooter.addView(navigate,new LinearLayout.LayoutParams(ui.dp(112),ui.dp(64)));
+        cancelNavigation=ui.mapButton("Clear",this::clearMapTarget); ui.danger(cancelNavigation); LinearLayout.LayoutParams cancelPosition=new LinearLayout.LayoutParams(ui.dp(72),ui.dp(64)); cancelPosition.leftMargin=ui.dp(6); navigationFooter.addView(cancelNavigation,cancelPosition);
+        FrameLayout.LayoutParams navigationPosition=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL); navigationPosition.setMargins(ui.dp(40),0,ui.dp(40),ui.dp(104)); middle.addView(navigationFooter,navigationPosition);
 
         TextView attribution=ui.text("© OpenStreetMap · OpenMapTiles · OpenFreeMap",10,ui.muted); attribution.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); attribution.setMinHeight(ui.dp(24)); attribution.setContentDescription("Map credits"); attribution.setOnClickListener(v->panels.attribution());
         FrameLayout.LayoutParams creditsPosition=new FrameLayout.LayoutParams(-2,ui.dp(24),Gravity.BOTTOM|Gravity.RIGHT); creditsPosition.setMargins(0,0,ui.dp(8),ui.dp(8)); middle.addView(attribution,creditsPosition);
 
-        right.addView(ui.label("YOUR DRIVE. IN FOCUS.")); ui.gap(right,18);
-        TextView title=ui.text("Make yourself\nat home.",30,ui.text); title.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); right.addView(title); ui.gap(right,8);
-        right.addView(ui.text("Your essentials, one touch away.",14,ui.muted)); ui.gap(right,24);
         LinearLayout cards=ui.column();
         for(int row=0;row<2;row++) {
             LinearLayout cardRow=ui.row();
@@ -167,19 +177,21 @@ public final class MainActivity extends Activity {
                 int index=row*2+column; String key=new String[]{"dvr","projection","nav","music"}[index];
                 String label=new String[]{"Dashcam","Phone link","Navigate","Music"}[index];
                 LinearLayout tile=ui.column(); tile.setGravity(Gravity.CENTER); tile.setPadding(ui.dp(8),ui.dp(14),ui.dp(8),ui.dp(14));
-                tile.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),ui.surface(ui.card,ui.border,22),null));
-                tile.addView(ui.glyph(key,index==1 ? ui.amber : ui.accent),new LinearLayout.LayoutParams(ui.dp(38),ui.dp(38))); ui.gap(tile,18);
-                TextView caption=ui.text(label,18,ui.text); caption.setGravity(Gravity.CENTER); tile.addView(caption); tileCaptions.put(key,caption);
-                TextView hint=ui.text("Hold to choose app",11,ui.muted); hint.setGravity(Gravity.CENTER); hint.setMaxLines(1); hint.setEllipsize(android.text.TextUtils.TruncateAt.END); ui.gap(tile,8); tile.addView(hint); tileHints.put(key,hint);
+                boolean navigation=key.equals("nav"); int tileText=navigation ? ThemePalette.ON_FILLED : ui.text;
+                tile.setBackground(ui.controlSurface(navigation ? ui.navFill : ui.card,navigation ? ui.accent : ui.border,2,navigation));
+                tile.addView(ui.glyph(key,tileText),new LinearLayout.LayoutParams(ui.dp(44),ui.dp(44))); ui.gap(tile,12);
+                TextView caption=ui.text(label,22,tileText); caption.setTypeface(Ui.MEDIUM); caption.setGravity(Gravity.CENTER); caption.setMaxLines(2); caption.setEllipsize(android.text.TextUtils.TruncateAt.END); tile.addView(caption); tileCaptions.put(key,caption);
+                TextView hint=ui.text("Choose app",18,navigation ? ThemePalette.ON_FILLED : ui.muted); hint.setGravity(Gravity.CENTER); hint.setMaxLines(2); hint.setEllipsize(android.text.TextUtils.TruncateAt.END); ui.gap(tile,8); tile.addView(hint); tileHints.put(key,hint);
                 tile.setContentDescription(label + ", hold to choose app"); tile.setFocusable(true); tile.setOnClickListener(v->launchSlot(key)); tile.setOnLongClickListener(v->{ chooseSlot(key); return true; });
                 LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(0,-1,1); tileParams.setMargins(ui.dp(4),ui.dp(4),ui.dp(4),ui.dp(4)); cardRow.addView(tile,tileParams);
             }
             cards.addView(cardRow,new LinearLayout.LayoutParams(-1,0,1));
         }
         right.addView(cards,new LinearLayout.LayoutParams(-1,0,1)); ui.gap(right,14);
-        LinearLayout utility=ui.row(); ui.weighted(utility,ui.actionTile("Settings","settings",panels::settings),80);
-        LinearLayout updateTile=ui.actionTile("Updates","updates",panels::updates); updates=(TextView)updateTile.getChildAt(1); ui.weighted(utility,updateTile,80);
-        ui.weighted(utility,ui.actionTile("About","info",panels::about),80); right.addView(utility);
+        int utilityHeight=fontScale>1.1f ? Math.round(52+48*fontScale) : 80;
+        LinearLayout utility=ui.row(); ui.weighted(utility,ui.actionTile("Settings","settings",panels::settings),utilityHeight);
+        LinearLayout updateTile=ui.actionTile("Updates","updates",panels::updates); updates=(TextView)updateTile.getChildAt(1); ui.weighted(utility,updateTile,utilityHeight);
+        ui.weighted(utility,ui.actionTile("About","info",panels::about),utilityHeight); right.addView(utility);
         renderRadio(); renderFavorites(); renderLocation();
     }
     void defaults() {
@@ -193,7 +205,7 @@ public final class MainActivity extends Activity {
     private void renderTiles() {
         for(String key:new String[]{"dvr","projection","nav","music"}) {
             AppCatalog.App app=find(prefs.get("slot_"+key,""));
-            TextView hint=tileHints.get(key); if(hint!=null) hint.setText(app==null ? "Hold to choose app" : app.label);
+            TextView hint=tileHints.get(key); if(hint!=null) { hint.setText(app==null ? "Choose app" : app.label); hint.setVisibility(key.equals("projection") && app!=null ? View.GONE : View.VISIBLE); }
             if(key.equals("projection") && tileCaptions.get(key)!=null) tileCaptions.get(key).setText(app==null ? "Phone link" : app.label);
         }
     }
@@ -221,7 +233,7 @@ public final class MainActivity extends Activity {
         if(favorites==null) return; favorites.removeAllViews(); List<String> values=prefs.favorites();
         for(String value:values) {
             AppCatalog.App app=find(value); String label=app==null ? "Missing" : app.label;
-            Button button=ui.button(label,()->launch(value)); button.setTextSize(11); button.setMaxLines(2);
+            Button button=ui.button(label,()->launch(value)); button.setTextSize(18); button.setMaxLines(2);
             button.setContentDescription(label);
             if(app!=null) {
                 android.graphics.drawable.Drawable icon=catalog.icon(app).getConstantState().newDrawable();
@@ -237,14 +249,17 @@ public final class MainActivity extends Activity {
         if(frequency==null || radio==null) return;
         RadioController.State state=radio.state;
         frequency.setText(RadioFrequency.number(state.frequency));
-        radioPower.setText(state.playing ? "●" : "○"); radioPower.setTextColor(state.playing ? ui.accent : ui.muted);
+        radioPower.setText(state.playing ? "●" : "○"); radioPower.setTextColor(state.playing ? ui.green : ui.muted);
         String connection=!state.observing ? "PAUSED" : state.connecting ? "CONNECTING…" : state.connected ? state.playing ? "ON AIR · CONNECTED" : "CONNECTED" : "RADIO OFFLINE";
         radioStatus.setText((RadioFrequency.valid(state.frequency) ? RadioFrequency.unit(state.frequency)+" · " : "")+connection);
+        radioStatus.setTooltipText(radioStatus.getText());
         radioStatus.setTextColor(state.connected ? ui.green : ui.amber); radioRefresh.setEnabled(!state.connecting);
         metadata.setText(!state.rt.isEmpty() ? state.ps + "  " + state.rt : !state.ps.isEmpty() ? state.ps : !state.error.isEmpty() ? state.error : !RadioFrequency.valid(state.frequency) ? "Waiting for station data" : "Hold a preset to save your station");
         for(int i=0;i<6;i++) if(presets[i]!=null) {
             int saved=prefs.frequency(i); presets[i].setText((i+1)+"\n"+RadioFrequency.number(saved));
-            presets[i].setTextColor(saved!=0 && saved==state.frequency && prefs.band(i)==state.band ? ui.accent : ui.muted);
+            boolean selected=saved!=0 && saved==state.frequency && radio.state.bandKnown && prefs.band(i)==state.band;
+            ui.radioPreset(presets[i],selected);
+            presets[i].setContentDescription("Preset "+(i+1)+(saved==0 ? ", empty" : ", "+RadioFrequency.number(saved)+" "+RadioFrequency.unit(saved))+(selected ? ", selected" : "")+", hold to save");
         }
     }
     private void renderLocation() {
@@ -255,22 +270,30 @@ public final class MainActivity extends Activity {
         String[] directions={"N","NE","E","SE","S","SW","W","NW"}; int bearing=(int)Math.round(portal.heading())%360;
         String mode=portal.following() ? "FOLLOW" : "EXPLORE";
         heading.setText(valid && portal.hasHeading() ? String.format(Locale.US,"%03d° %s / %s",bearing,directions[(int)Math.round(bearing/45.0)%8],mode) : "—° / "+mode);
-        recenter.setTextColor(portal.following() ? ui.muted : ui.accent);
+        ui.selected(recenter,!portal.following());
         String gpsStatus=valid ? "GPS lock, accuracy ±"+(int)fix.getAccuracy()+" m" : gpsMessage;
-        gps.setText(valid ? "● ±"+(int)fix.getAccuracy()+" m" : "● GPS"); gps.setTextColor(valid ? ui.accent : ui.amber); gps.setContentDescription(gpsStatus+". Tap for location settings."); gps.setTooltipText(gpsStatus);
+        gps.setText(valid ? "GPS ±"+(int)fix.getAccuracy()+"m" : "GPS —"); gps.setTextColor(valid ? ui.green : ui.amber); gps.setContentDescription(gpsStatus+". Tap for location settings."); gps.setTooltipText(gpsStatus);
         Navigation.Place selected=portal.selection();
-        boolean hasNavigation=selected!=null || portal.route!=null;
-        navigationFooter.setVisibility(hasNavigation || !prefs.data.getBoolean("online_maps",false) ? View.VISIBLE : View.GONE);
-        cancelNavigation.setVisibility(selected==null && portal.route==null ? View.GONE : View.VISIBLE);
+        boolean routing=portal.route!=null && selected==null;
+        routeBanner.setVisibility(routing ? View.VISIBLE : View.GONE); heading.setVisibility(routing ? View.GONE : View.VISIBLE);
+        navigationFooter.setVisibility(selected!=null || !routing && !prefs.data.getBoolean("online_maps",false) ? View.VISIBLE : View.GONE);
+        cancelNavigation.setVisibility(selected==null ? View.GONE : View.VISIBLE);
         navigate.setVisibility(selected==null ? View.GONE : View.VISIBLE);
-        navigate.setEnabled(selected!=null && valid && !pinRouting && prefs.data.getBoolean("online_maps",false));
-        navigate.setAlpha(navigate.isEnabled() ? 1f : .45f);
-        cancelNavigation.setText(selected==null ? "Stop" : "Clear");
+        boolean canNavigate=selected!=null && valid && !pinRouting && prefs.data.getBoolean("online_maps",false);
+        boolean navigateStateChanged=navigate.isEnabled()!=canNavigate; navigate.setEnabled(canNavigate);
+        navigate.setText(pinRouting ? "Routing…" : !valid ? "Wait GPS" : "Navigate");
+        if(navigateStateChanged) { if(canNavigate) ui.primary(navigate); else ui.neutral(navigate); }
+        // Unavailable actions keep legible labels; enabled state/accessibility convey operability.
+        navigate.setAlpha(1f);
         if(selected!=null) {
             String coordinates=String.format(Locale.US,"%.5f, %.5f",selected.lat,selected.lon);
             String distance=valid ? Navigation.distance(com.breakdash.launcher.core.RouteProgress.distance(fix.getLatitude(),fix.getLongitude(),selected.lat,selected.lon),prefs.mph())+" away" : "Waiting for GPS";
             guidance.setText((pinRouting ? "Calculating route…" : "Pinned location · "+distance)+"\n"+coordinates);
-        } else if(portal.route!=null) guidance.setText(valid ? portal.route.guidance(fix,prefs.mph()) : "Waiting for GPS\n"+portal.route.destination.name);
+        } else if(routing) {
+            NavigationGuidance presentation=valid ? portal.route.guidance(fix,prefs.mph()) : NavigationGuidance.waiting(portal.route.destination.name);
+            turnDistance.setText(presentation.distance); turnInstruction.setText(presentation.instruction); routeDetail.setText(presentation.detail);
+            routeBanner.setContentDescription(presentation.distance+". "+presentation.instruction+". "+presentation.detail);
+        }
         else guidance.setText("Connect online maps in Settings to explore");
     }
     private void pinDestination(Navigation.Place place) {

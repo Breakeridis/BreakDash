@@ -2,6 +2,8 @@
 
 Implemented in v1.0.2 for the 1280 × 720 head unit. This replaces the combined utility/dialog design in original specification sections 3.6–3.8.
 
+v1.0.11 applies the shared [readability palette](cockpit-readability.md): selected tabs have filled blue backgrounds, primary actions have white-on-blue labels, explanatory text is 18 sp, inputs are outlined and switches have opaque contrasting tracks/thumbs with explicit On/Off labels. The saved Day/Night setting also selects the native widget theme. Compact links are 64 dp high; unavailable update actions remain hidden.
+
 | Dashboard action | First screen | Further actions |
 | --- | --- | --- |
 | Settings | Left rail: Appearance, Maps, Apps, Device | Night mode switch; online maps switch/providers; Aurora presence and Google switches; launcher, Android settings, health, advanced tools |

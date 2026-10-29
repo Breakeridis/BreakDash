@@ -3,10 +3,27 @@
         <item name="android:fontFamily">sans</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowBackground">#0A0E17</item>
-        <item name="android:colorAccent">#42D6CB</item>
+        <!-- Native system-widget fallback colours mirror ThemePalette. -->
+        <item name="android:windowBackground">#080A0D</item>
+        <item name="android:colorAccent">#75B7FF</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#CBD2D9</item>
+        <item name="android:colorControlNormal">#929BA6</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="AppThemeDay" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:colorAccent">#00408F</item>
+        <item name="android:textColorPrimary">#101820</item>
+        <item name="android:textColorSecondary">#344150</item>
+        <item name="android:colorControlNormal">#536170</item>
+        <item name="android:windowNoTitle">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 </resources>

@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.location.Location;
@@ -25,6 +24,7 @@ import com.breakdash.launcher.core.MapTracking;
 import com.breakdash.launcher.core.VehicleHeading;
 import com.breakdash.launcher.core.VehicleMotion;
 import com.breakdash.launcher.core.RouteProgress;
+import com.breakdash.launcher.core.ThemePalette;
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
 import org.maplibre.android.camera.CameraUpdateFactory;
@@ -55,7 +55,8 @@ final class MapPortal extends FrameLayout implements LocationListener {
     private final Consumer<String> status;
     private final float density;
     private boolean active, light, destroyed;
-    private int background = Color.rgb(10,14,23);
+    private ThemePalette palette=new ThemePalette(false);
+    private int background=palette.background;
     private Location lastFix;
     private final VehicleHeading vehicleHeading = new VehicleHeading();
     private final MapTracking tracking = new MapTracking();
@@ -98,27 +99,27 @@ final class MapPortal extends FrameLayout implements LocationListener {
             applyStyle();
         });
     }
-    void theme(boolean value) {
-        light = value; background = Color.parseColor(light ? "#EEF3F5" : "#0A0E17");
+    void theme(ThemePalette value) {
+        palette=value; light=value.light; background=value.background;
         getChildAt(1).invalidate(); if (map != null) applyStyle();
     }
     void reloadOnlineChoice() { if (map != null) applyStyle(); }
     private void applyStyle() {
         Style.Builder builder = new Style.Builder();
         if (prefs.data.getBoolean("online_maps",false)) builder.fromUri(prefs.get(light ? "map_day" : "map_night", light ? "https://tiles.openfreemap.org/styles/positron" : "https://tiles.openfreemap.org/styles/dark"));
-        else builder.fromJson("{\"version\":8,\"sources\":{},\"layers\":[{\"id\":\"background\",\"type\":\"background\",\"paint\":{\"background-color\":\"" + (light ? "#DCE6E9" : "#101E29") + "\"}}]}");
+        else builder.fromJson("{\"version\":8,\"sources\":{},\"layers\":[{\"id\":\"background\",\"type\":\"background\",\"paint\":{\"background-color\":\"" + color(palette.surface) + "\"}}]}");
         map.setStyle(builder, style -> {
             if (destroyed) return;
             style.addSource(new GeoJsonSource("breakdash-route", empty()));
-            style.addLayer(new LineLayer("breakdash-route-halo", "breakdash-route").withProperties(PropertyFactory.lineColor("#0A0E17"),PropertyFactory.lineWidth(10f)));
-            style.addLayer(new LineLayer("breakdash-route-line", "breakdash-route").withProperties(PropertyFactory.lineColor("#42D6CB"),PropertyFactory.lineWidth(5f)));
+            style.addLayer(new LineLayer("breakdash-route-halo", "breakdash-route").withProperties(PropertyFactory.lineColor(color(palette.background)),PropertyFactory.lineWidth(10f)));
+            style.addLayer(new LineLayer("breakdash-route-line", "breakdash-route").withProperties(PropertyFactory.lineColor(color(palette.navigation)),PropertyFactory.lineWidth(5f)));
             style.addSource(new GeoJsonSource("breakdash-destination", empty()));
             style.addImage("breakdash-pin",pinImage());
             style.addLayer(pinLayer("breakdash-destination-pin","breakdash-destination"));
             style.addSource(new GeoJsonSource("breakdash-selection", empty()));
             style.addLayer(pinLayer("breakdash-selection-pin","breakdash-selection"));
             style.addSource(new GeoJsonSource("breakdash-vehicle", empty()));
-            style.addLayer(new CircleLayer("breakdash-vehicle-dot", "breakdash-vehicle").withProperties(PropertyFactory.circleColor("#42D6CB"),PropertyFactory.circleRadius(7f),PropertyFactory.circleStrokeColor("#FFFFFF"),PropertyFactory.circleStrokeWidth(2f)));
+            style.addLayer(new CircleLayer("breakdash-vehicle-dot", "breakdash-vehicle").withProperties(PropertyFactory.circleColor(color(palette.navigation)),PropertyFactory.circleRadius(7f),PropertyFactory.circleStrokeColor(color(palette.background)),PropertyFactory.circleStrokeWidth(2f)));
             style.addImage("breakdash-arrow",vehicleImage());
             style.addLayer(new SymbolLayer("breakdash-vehicle-arrow","breakdash-vehicle").withProperties(
                     PropertyFactory.iconImage("breakdash-arrow"),PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true),
@@ -126,6 +127,7 @@ final class MapPortal extends FrameLayout implements LocationListener {
             renderRoute(); renderSelection(); renderFix();
         });
     }
+    private static String color(int value) { return String.format(Locale.ROOT,"#%06X",value & 0xFFFFFF); }
     private SymbolLayer pinLayer(String id,String source) {
         return new SymbolLayer(id,source).withProperties(PropertyFactory.iconImage("breakdash-pin"),PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
                 PropertyFactory.iconAllowOverlap(true),PropertyFactory.iconIgnorePlacement(true));
@@ -134,15 +136,16 @@ final class MapPortal extends FrameLayout implements LocationListener {
         Bitmap image = Bitmap.createBitmap(32,44,Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(image); Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG); Path pin = new Path();
         pin.moveTo(16,43); pin.cubicTo(12,35,1,25,1,16); pin.cubicTo(1,-4,31,-4,31,16); pin.cubicTo(31,25,20,35,16,43); pin.close();
-        paint.setColor(Color.parseColor("#F2B86B")); canvas.drawPath(pin,paint);
-        paint.setColor(Color.parseColor("#0A0E17")); canvas.drawCircle(16,15,6,paint); return image;
+        paint.setColor(palette.navigation); canvas.drawPath(pin,paint);
+        paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setColor(palette.background); canvas.drawPath(pin,paint);
+        paint.setStyle(Paint.Style.FILL); canvas.drawCircle(16,15,6,paint); return image;
     }
     private Bitmap vehicleImage() {
         Bitmap image=Bitmap.createBitmap(40,40,Bitmap.Config.ARGB_8888);
         Canvas canvas=new Canvas(image); Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); Path arrow=new Path();
         arrow.moveTo(20,3); arrow.lineTo(35,35); arrow.lineTo(20,28); arrow.lineTo(5,35); arrow.close();
-        paint.setColor(Color.parseColor("#42D6CB")); canvas.drawPath(arrow,paint);
-        paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setStrokeJoin(Paint.Join.ROUND); paint.setColor(Color.WHITE); canvas.drawPath(arrow,paint);
+        paint.setColor(palette.navigation); canvas.drawPath(arrow,paint);
+        paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2); paint.setStrokeJoin(Paint.Join.ROUND); paint.setColor(palette.background); canvas.drawPath(arrow,paint);
         return image;
     }
     void pin(Navigation.Place place) {
@@ -255,9 +258,11 @@ final class MapPortal extends FrameLayout implements LocationListener {
             tracking.previewRoute(SystemClock.elapsedRealtime()); cameraTo=null;
             int roundPadding=Math.round(Math.min(getWidth(),getHeight())*.20f);
             int bottomPadding=Math.max(roundPadding,Math.round(176*density));
+            // Keep northern route points and their pin heads clear of the new top guidance banner.
+            int topPadding=Math.max(roundPadding,Math.round((144*Math.max(1,getResources().getConfiguration().fontScale)+68)*density));
             // Follow-camera padding persists in MapLibre, so clear it before fitting a flat overview.
             map.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder(map.getCameraPosition()).padding(0,0,0,0).tilt(0).bearing(0).build()));
-            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),0,0,roundPadding,roundPadding,roundPadding,bottomPadding));
+            map.moveCamera(CameraUpdateFactory.newLatLngBounds(new LatLngBounds.Builder().includes(points).build(),0,0,roundPadding,topPadding,roundPadding,bottomPadding));
             if(active) postDelayed(finishPreview,MapTracking.ROUTE_PREVIEW_MS);
         } else { tracking.recenter(); renderFix(); }
         changed.accept(fix());
@@ -288,9 +293,9 @@ final class MapPortal extends FrameLayout implements LocationListener {
             float cx=getWidth()/2f,cy=getHeight()/2f,radius=mapRadius();
             mask.reset(); mask.setFillType(Path.FillType.EVEN_ODD); mask.addRect(0,0,getWidth(),getHeight(),Path.Direction.CW); mask.addCircle(cx,cy,radius,Path.Direction.CW);
             paint.setStyle(Paint.Style.FILL); paint.setColor(background); canvas.drawPath(mask,paint);
-            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(density); paint.setColor(Color.parseColor(light ? "#B9C8CF" : "#253342")); canvas.drawCircle(cx,cy,radius+density,paint);
-            paint.setColor(Color.parseColor("#42D6CB")); paint.setStrokeWidth(2*density); float arcRadius=radius+3*density; canvas.drawArc(cx-arcRadius,cy-arcRadius,cx+arcRadius,cy+arcRadius,225,90,false,paint);
-            paint.setStrokeWidth(density); paint.setColor(Color.parseColor(light ? "#7D919D" : "#405263"));
+            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(density); paint.setColor(palette.outline); canvas.drawCircle(cx,cy,radius+density,paint);
+            paint.setColor(palette.navigation); paint.setStrokeWidth(2*density); float arcRadius=radius+3*density; canvas.drawArc(cx-arcRadius,cy-arcRadius,cx+arcRadius,cy+arcRadius,225,90,false,paint);
+            paint.setStrokeWidth(density); paint.setColor(palette.outline);
             for(int i=0;i<60;i++){ double a=i*Math.PI/30; float outer=radius+3*density,inner=radius+(i%5==0?-3:1)*density; canvas.drawLine(cx+(float)Math.sin(a)*inner,cy+(float)Math.cos(a)*inner,cx+(float)Math.sin(a)*outer,cy+(float)Math.cos(a)*outer,paint); }
         }
     }

@@ -95,18 +95,18 @@ final class Panels implements AutoCloseable {
         try { main.openExternal(new Intent(Intent.ACTION_VIEW,Uri.parse(address))); }
         catch(Exception error) { main.toast("No browser is available"); }
     }
-    private void explain(LinearLayout body,String value) { TextView text=ui.text(value,15,ui.muted); text.setPadding(0,ui.dp(6),0,ui.dp(12)); body.addView(text); }
-    private void fullButton(LinearLayout body,String label,Runnable action) { Button button=ui.button(label,action); button.setTextSize(18); body.addView(button,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(body,8); }
+    private void explain(LinearLayout body,String value) { TextView text=ui.text(value,18,ui.muted); text.setPadding(0,ui.dp(6),0,ui.dp(12)); body.addView(text); }
+    private Button fullButton(LinearLayout body,String label,Runnable action) { Button button=ui.button(label,action); body.addView(button,new LinearLayout.LayoutParams(-1,ui.dp(80))); ui.gap(body,8); return button; }
     private TextView compactLink(LinearLayout body,String label,Runnable action) {
-        TextView link=ui.text(label,16,ui.muted); link.setMinHeight(ui.dp(60)); link.setGravity(Gravity.CENTER_VERTICAL);
+        TextView link=ui.text(label,18,ui.muted); link.setMinHeight(ui.dp(64)); link.setGravity(Gravity.CENTER_VERTICAL);
         link.setPadding(ui.dp(12),0,ui.dp(12),0); link.setSingleLine(true); link.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
-        link.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),null,null));
-        link.setFocusable(true); link.setOnClickListener(v->action.run()); body.addView(link,new LinearLayout.LayoutParams(-1,ui.dp(60))); return link;
+        link.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(ui.palette.neutralRipple()),null,null));
+        link.setFocusable(true); link.setOnClickListener(v->action.run()); body.addView(link,new LinearLayout.LayoutParams(-1,ui.dp(64))); return link;
     }
 
     void appPicker(String title,List<String> excluded,Consumer<AppCatalog.App> selected) {
         Panel panel=new Panel(title,false); EditText query=ui.input("Search installed apps"); panel.body.addView(query);
-        TextView hint=ui.text(selected==null ? "Tap to open · hold to pin to the dock" : "Choose an app",14,ui.muted); panel.body.addView(hint); ui.gap(panel.body,12);
+        TextView hint=ui.text(selected==null ? "Tap to open · hold to pin to the dock" : "Choose an app",18,ui.muted); panel.body.addView(hint); ui.gap(panel.body,12);
         GridView grid=new GridView(main); grid.setNumColumns(4); grid.setVerticalSpacing(ui.dp(8)); grid.setHorizontalSpacing(ui.dp(8)); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
         panel.body.addView(grid,new LinearLayout.LayoutParams(-1,0,1));
         List<AppCatalog.App> all=new ArrayList<>(),filtered=new ArrayList<>();
@@ -120,7 +120,7 @@ final class Panels implements AutoCloseable {
                 else {
                     tile=ui.row(); tile.setPadding(ui.dp(12),ui.dp(8),ui.dp(10),ui.dp(8)); tile.setGravity(Gravity.CENTER_VERTICAL); tile.setBackground(ui.surface(ui.card,ui.border,14));
                     tile.addView(new ImageView(main),new LinearLayout.LayoutParams(ui.dp(40),ui.dp(40)));
-                    TextView label=ui.text("",16,ui.text); label.setPadding(ui.dp(12),0,0,0); label.setMaxLines(2); tile.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+                    TextView label=ui.text("",18,ui.text); label.setPadding(ui.dp(12),0,0,0); label.setMaxLines(2); label.setEllipsize(android.text.TextUtils.TruncateAt.END); tile.addView(label,new LinearLayout.LayoutParams(0,-2,1));
                     tile.setLayoutParams(new android.widget.AbsListView.LayoutParams(-1,ui.dp(88)));
                 }
                 AppCatalog.App app=filtered.get(position); ((ImageView)tile.getChildAt(0)).setImageDrawable(main.catalog.icon(app)); ((TextView)tile.getChildAt(1)).setText(app.label); tile.setContentDescription(app.label); return tile;
@@ -145,7 +145,7 @@ final class Panels implements AutoCloseable {
     void onlineMaps() {
         Panel panel=new Panel("Connect online maps",true,true);
         explain(panel.body,"Internet required. Maps load around your location. Search shares text and nearby coordinates; routes share your start and destination with the configured providers.");
-        fullButton(panel.body,"Connect maps",()->{ main.prefs.data.edit().putBoolean("online_maps",true).apply(); main.portal.reloadOnlineChoice(); panel.dismiss(); });
+        ui.primary(fullButton(panel.body,"Connect maps",()->{ main.prefs.data.edit().putBoolean("online_maps",true).apply(); main.portal.reloadOnlineChoice(); panel.dismiss(); }));
         fullButton(panel.body,"Keep GPS only",panel::dismiss);
         fullButton(panel.body,"Provider details",()->{
             Panel details=new Panel("Map providers",true,true);
@@ -164,7 +164,7 @@ final class Panels implements AutoCloseable {
         Location origin=main.portal.fix();
         if(origin==null) { main.toast("Wait for a fresh GPS fix before searching for a route"); return; }
         Panel panel=new Panel("Where to?",false); EditText query=ui.input("Street, place or address"); panel.body.addView(query);
-        TextView state=ui.text("Type at least 3 characters",14,ui.muted); panel.body.addView(state); ui.gap(panel.body,10);
+        TextView state=ui.text("Type at least 3 characters",18,ui.muted); panel.body.addView(state); ui.gap(panel.body,10);
         ScrollView scroller=new ScrollView(main); LinearLayout results=ui.column(); scroller.addView(results); panel.body.addView(scroller,new LinearLayout.LayoutParams(-1,0,1));
         final int[] generation={0}; final boolean[] searching={false}; final String[] queued={null};
         Runnable[] perform={null};
@@ -211,8 +211,7 @@ final class Panels implements AutoCloseable {
             if(panel.busy) return;
             page.removeAllViews(); pageScroll.scrollTo(0,0);
             for(int i=0;i<buttons.length;i++) {
-                buttons[i].setTextColor(i==selected[0] ? ui.accent : ui.text); buttons[i].setSelected(i==selected[0]);
-                buttons[i].setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x3342D6CB),ui.surface(ui.card,i==selected[0] ? ui.accent : ui.border,16),null));
+                ui.selected(buttons[i],i==selected[0]);
             }
             page.addView(ui.text(tabs[selected[0]],28,ui.text)); ui.gap(page,20);
             switch(selected[0]) {
@@ -278,7 +277,7 @@ final class Panels implements AutoCloseable {
         compactLink(page,"Aurora details  ›",this::aurora);
         ui.heading(page,"GOOGLE SERVICES");
         List<Ui.ToggleRow> rows=new ArrayList<>();
-        TextView status=ui.text("",16,ui.muted);
+        TextView status=ui.text("",18,ui.muted);
         Runnable refresh=()->{
             for(int i=0;i<rows.size();i++) {
                 String pkg=SystemTools.GOOGLE[i],state=main.system.packageStatus(pkg);
@@ -297,7 +296,7 @@ final class Panels implements AutoCloseable {
         Panel panel=new Panel("Google service tools",true,true);
         Runnable[] refresh={null};
         Ui.ToggleRow all=ui.toggle(panel.body,"All Google services",false,"",enabled->changeGoogle(panel,SystemTools.GOOGLE,enabled,refresh[0]));
-        TextView status=ui.text("",16,ui.muted); panel.body.addView(status);
+        TextView status=ui.text("",18,ui.muted); panel.body.addView(status);
         refresh[0]=()->{
             int enabled=0; for(String pkg:SystemTools.GOOGLE) if(main.system.packageEnabled(pkg)) enabled++;
             all.state(enabled==SystemTools.GOOGLE.length,enabled==3 ? "On · All enabled" : enabled==0 ? "Off · All disabled or missing" : "Mixed · "+enabled+" of 3 enabled",!panel.busy);
@@ -357,7 +356,7 @@ final class Panels implements AutoCloseable {
 
     void about() {
         Panel panel=new Panel("About",true,true);
-        TextView name=ui.text("BreakDash",38,ui.text); name.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL)); panel.body.addView(name);
+        TextView name=ui.text("BreakDash",38,ui.text); panel.body.addView(name);
         explain(panel.body,"Version "+BuildConfig.VERSION_NAME+" · "+(BuildConfig.DEBUG ? "Development build" : "Release")+"\nBuilt for a lighter drive.");
         LinearLayout actions=ui.row();
         ui.weighted(actions,ui.actionTile("Report a problem","info",20,this::report),144);
@@ -374,7 +373,7 @@ final class Panels implements AutoCloseable {
         explain(panel.body,"Installed: "+BuildConfig.VERSION_NAME+(BuildConfig.DEBUG ? " · Development build" : ""));
         TextView available=ui.text("",18,ui.muted); panel.body.addView(available); ui.gap(panel.body,16);
         TextView status=ui.text("",26,ui.text); panel.body.addView(status);
-        TextView reason=ui.text("",17,ui.muted); reason.setPadding(0,ui.dp(8),0,ui.dp(20)); panel.body.addView(reason);
+        TextView reason=ui.text("",18,ui.muted); reason.setPadding(0,ui.dp(8),0,ui.dp(20)); panel.body.addView(reason);
         LinearLayout downloadAction=ui.column();
         Button install=ui.button(BuildConfig.DEBUG ? "Get signed release" : "Download & install",()->{
             if(panel.busy || main.release==null) return;
@@ -395,9 +394,11 @@ final class Panels implements AutoCloseable {
             available.setVisibility(release==null ? View.GONE : View.VISIBLE);
             boolean ready=!panel.busy && checkError[0]==null && release!=null && !release.url.isEmpty() && (BuildConfig.DEBUG || release.newer);
             downloadAction.setVisibility(ready ? View.VISIBLE : View.GONE); install.setEnabled(ready);
+            ui.primary(install); if(ready) ui.neutral(check); else ui.primary(check);
             notes.setVisibility(release!=null && !panel.busy ? View.VISIBLE : View.GONE);
             check.setEnabled(!panel.busy); check.setText(release==null ? "Check for updates" : "Check again");
             source.setText("Source · "+repository+"  ›"); source.setEnabled(!panel.busy);
+            status.setTextColor(!panel.busy && checkError[0]!=null ? ui.danger : !panel.busy && !BuildConfig.DEBUG && release!=null && !release.newer ? ui.green : ui.text);
             if(panel.busy) { status.setText("Checking…"); reason.setText(""); return; }
             if(checkError[0]!=null) { status.setText("Couldn't check for updates"); reason.setText(checkError[0]); return; }
             if(BuildConfig.DEBUG) {
@@ -419,16 +420,16 @@ final class Panels implements AutoCloseable {
         Panel panel=new Panel("Report a problem",true,true);
         explain(panel.body,"Add a note, then review your report before sending.");
         EditText note=ui.input("Optional note about a problem or request"); note.setSingleLine(false); note.setMinLines(2); note.setMaxLines(5); note.setFilters(new InputFilter[]{new InputFilter.LengthFilter(4000)}); panel.body.addView(note);
-        fullButton(panel.body,"Preview report",()->reportPreview(note.getText().toString()));
+        ui.primary(fullButton(panel.body,"Preview report",()->reportPreview(note.getText().toString())));
         fullButton(panel.body,"Own server setup",()->connections("reports"));
     }
     private void reportPreview(String note) {
         Panel panel=new Panel("Review report",false,true);
         explain(panel.body,"Review firmware, memory and radio details. Common identifiers are masked; check for personal data. Send feedback encrypts to your fixed ntfy inbox. Ask to check it within 3 hours; no link copying needed.");
-        TextView state=ui.text("Collecting…",17,ui.muted); panel.body.addView(state);
+        TextView state=ui.text("Collecting…",18,ui.muted); panel.body.addView(state);
         TextView terminal=ui.text("",13,ui.text); terminal.setTypeface(Typeface.MONOSPACE); terminal.setTextIsSelectable(true);
         ScrollView scroll=new ScrollView(main); scroll.addView(terminal); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        Button feedback=ui.button("Send feedback",()->{}); feedback.setTextColor(ui.accent); feedback.setEnabled(false); panel.body.addView(feedback,new LinearLayout.LayoutParams(-1,ui.dp(80)));
+        Button feedback=ui.button("Send feedback",()->{}); ui.primary(feedback); feedback.setEnabled(false); panel.body.addView(feedback,new LinearLayout.LayoutParams(-1,ui.dp(80)));
         LinearLayout actions=ui.row(); Button temporary=ui.button("Temporary link",()->{}),send=ui.button("My server",()->{});
         temporary.setEnabled(false); send.setEnabled(false);
         ui.weighted(actions,temporary,64); ui.weighted(actions,send,64); panel.body.addView(actions);
@@ -462,7 +463,7 @@ final class Panels implements AutoCloseable {
         if(link==null) return;
         Panel panel=new Panel("Report uploaded",true,true);
         explain(panel.body,"Copy the full link and paste it in your support chat within 3 hours. It includes the decryption key: anyone with this link can read the report. Copy it before closing.");
-        TextView address=ui.text(link,16,ui.muted); address.setTextIsSelectable(true); panel.body.addView(address); ui.gap(panel.body,20);
+        TextView address=ui.text(link,18,ui.muted); address.setTextIsSelectable(true); panel.body.addView(address); ui.gap(panel.body,20);
         fullButton(panel.body,"Copy share link",()->{
             ClipData clip=ClipData.newPlainText("BreakDash report link",link);
             android.os.PersistableBundle extras=new android.os.PersistableBundle(); extras.putBoolean("android.content.extra.IS_SENSITIVE",true); clip.getDescription().setExtras(extras);
@@ -478,7 +479,7 @@ final class Panels implements AutoCloseable {
         Panel panel=new Panel(aurora ? "Install Aurora Store" : "Update BreakDash",true,true);
         TextView state=ui.text("Preparing download…",18,ui.text); panel.body.addView(state);
         ProgressBar progress=new ProgressBar(main,null,android.R.attr.progressBarStyleHorizontal); progress.setIndeterminate(true); progress.setMax(100); panel.body.addView(progress,new LinearLayout.LayoutParams(-1,ui.dp(24)));
-        Button install=ui.button("Install APK",()->{}); install.setEnabled(false); panel.body.addView(install);
+        Button install=ui.button("Install APK",()->{}); ui.primary(install); install.setEnabled(false); panel.body.addView(install);
         explain(panel.body,"Android will ask you to allow installation from BreakDash. If prompted, enable that permission, return here, and tap Install APK again. Closing this dialog cancels an active download.");
         panel.scope.run(()->{
             java.util.function.IntConsumer changed=percent->panel.scope.post(()->{ progress.setIndeterminate(percent<0); if(percent>=0) progress.setProgress(percent); state.setText(percent<0 ? "Downloading…" : "Downloading · "+percent+"%"); });

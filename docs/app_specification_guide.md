@@ -13,8 +13,8 @@ This document is a comprehensive functional and UI/UX blueprint of the **Minimal
    - Engineered specifically for resource-constrained Android head units (1–2 GB physical RAM with tight memory headroom).
    - Zero background polling loops when features are not actively visible. All telemetry and background services suspend when their respective dialogs or widgets are inactive.
 3. **Cockpit Dual-Theme Support**:
-   - **Obsidian Dark Mode (Night)**: Pure deep-slate backgrounds (`#0A0E17`), subtle borders, cyan/amber illumination to eliminate night glare.
-   - **High-Contrast Light Mode (Day)**: Crisp daylight-readable contrast designed to counter direct sunlight reflections through windshields.
+   - **Night**: Near-black background (`#080A0D`), charcoal controls, clear outlines and off-white text; blue navigation and amber radio accents remain restrained.
+   - **Day**: White background, near-black text and dark filled primary actions. Actual sunlight and glare readability require head-unit validation; see [readability design](cockpit-readability.md).
 
 ---
 
@@ -167,6 +167,8 @@ A 2×2 grid of large, tactile automotive utility tiles representing primary in-c
 **v1.0.8 revision:** [Radio/Home and signing follow-up](diagnostic-privacy-and-usb.md) makes dashboard radio startup passive, binds tuner commands only after explicit taps, adds bounded persisted app/crash/update diagnostics, and adds a legacy certificate-read fallback while retaining exact signer verification.
 
 **v1.0.10 revision:** [Factory radio status](radio-integration.md) restores a visible-only read connection with the factory's real generated proxy/model, guards vendor Parcelable broadcasts, adds clear connection status and refresh, and avoids all frequency-request broadcasts. It supersedes v1.0.8's passive-only station startup without introducing polling or guessed wire formats.
+
+**v1.0.11 revision:** [Cockpit readability](cockpit-readability.md) implements the chosen navigation-first hierarchy and distinct section colours. It introduces a larger structured guidance banner, labeled map controls, stronger day/night surfaces/text, selected states and clearer typography while retaining map size and established behavior.
 
 Houses system tools, software updates, and configuration controls.
 
