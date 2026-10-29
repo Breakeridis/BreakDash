@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 /** Metadata and signatures only: no class initialization, fields, construction, binding or method invocation. */
 final class BluetoothFactoryInspector {
@@ -21,6 +23,7 @@ final class BluetoothFactoryInspector {
     @SuppressWarnings("deprecation")
     static String inspect(Context context) {
         long deadline=SystemClock.elapsedRealtime()+5000; int candidates=0;
+        Set<String> seen=new HashSet<>();
         StringBuilder out=new StringBuilder(BluetoothDiagnostics.components(context));
         for(String name:BluetoothDiagnostics.FACTORY) {
             if(expired(deadline) || candidates>=64) { out.append("Inspection incomplete: time/class budget\n"); break; }
@@ -45,9 +48,11 @@ final class BluetoothFactoryInspector {
                             String typeName=entries.nextElement();
                             String simple=typeName.substring(typeName.lastIndexOf('.')+1);
                             if(typeName.length()>180 || !typeName.startsWith("com.nwd.") || !(typeName.endsWith("$Stub") || simple.matches("I[A-Z][A-Za-z0-9_]*"))) continue;
+                            String contract=typeName.endsWith("$Stub") ? typeName.substring(0,typeName.length()-5) : typeName;
+                            if(!seen.add(contract)) continue;
                             candidates++;
                             try {
-                                Class<?> type=Class.forName(typeName.endsWith("$Stub") ? typeName.substring(0,typeName.length()-5) : typeName,false,loader);
+                                Class<?> type=Class.forName(contract,false,loader);
                                 if(!type.isInterface() || !IInterface.class.isAssignableFrom(type)) continue;
                                 out.append("  Interface ").append(type.getName()).append('\n');
                                 int methods=0;

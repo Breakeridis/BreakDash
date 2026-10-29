@@ -23,7 +23,7 @@ import android.os.SystemClock;
 import com.breakdash.launcher.core.BluetoothSession;
 import com.breakdash.launcher.core.BluetoothSession.Reason;
 import com.breakdash.launcher.core.BluetoothSession.State;
-import java.util.ArrayList;
+import com.breakdash.launcher.core.BluetoothDiscovery;
 import java.util.List;
 
 /** Only the visible Bluetooth page owns this controller. No service, reconnect, reads or writes. */
@@ -37,7 +37,8 @@ final class BluetoothController {
         String state() { return bond==BluetoothDevice.BOND_BONDED ? "Paired" : bond==BluetoothDevice.BOND_BONDING ? "Pairing" : "Discovered"; }
         String transport() { return classic && ble || type==BluetoothDevice.DEVICE_TYPE_DUAL ? "Classic + BLE" : ble || type==BluetoothDevice.DEVICE_TYPE_LE ? "BLE" : classic || type==BluetoothDevice.DEVICE_TYPE_CLASSIC ? "Classic" : "Unknown transport"; }
     }
-    final List<Device> devices=new ArrayList<>();
+    private final BluetoothDiscovery<BluetoothDevice,Device> inventory=new BluetoothDiscovery<>();
+    final List<Device> devices=inventory.rows();
     final BluetoothSession session=new BluetoothSession(this::cleanup);
     String status="Ready · choose a scan or refresh paired devices";
     private final Context context;
@@ -111,8 +112,8 @@ final class BluetoothController {
         return add(device,rssi,classic,ble,null);
     }
     private Device add(BluetoothDevice device,Integer rssi,boolean classic,boolean ble,String advertisedName) {
-        Device row=null; for(Device item:devices) if(item.handle.equals(device)) { row=item; break; }
-        if(row==null) { if(devices.size()>=BluetoothSession.MAX_DEVICES) return null; row=new Device(device); devices.add(row); }
+        Device row=inventory.getOrAdd(device,()->new Device(device));
+        if(row==null) return null;
         String name=device.getName();
         if(name==null || name.trim().isEmpty()) name=advertisedName;
         if(name!=null && !name.trim().isEmpty()) row.name=name.replaceAll("[\\p{Cntrl}]"," ").substring(0,Math.min(name.length(),80));
@@ -141,7 +142,7 @@ final class BluetoothController {
     void scan(boolean ble) {
         if(!prepare(ble ? State.BLE_SCAN : State.CLASSIC_SCAN,true)) return;
         final long revision=token;
-        devices.clear(); refreshPaired();
+        inventory.clear(); refreshPaired();
         try {
             if(ble) {
                 if(!context.getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE)) { fail(Reason.MISSING_HARDWARE,0,"Android reports BLE as unavailable"); return; }
