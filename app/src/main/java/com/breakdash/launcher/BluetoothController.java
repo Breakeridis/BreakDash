@@ -52,6 +52,7 @@ final class BluetoothController {
     private BluetoothGatt gatt;
     private Device pairing;
     private long token;
+    private State operation=State.IDLE;
     private String schema="";
     private final Runnable update=this::renderChanged;
     private final Runnable deadline=this::deadline;
@@ -123,10 +124,11 @@ final class BluetoothController {
     }
     private void renderChanged() { uiPending=false; if(visible) changed.run(); }
     private void notifyUi() { if(visible && !uiPending) { uiPending=true; handler.postDelayed(update,200); } }
-    private void save() { BluetoothDiagnostics.probe(context,session.evidence()+"Devices listed (cap 32): "+devices.size()+"\n"+schema); }
+    private void save() { BluetoothDiagnostics.probe(context,operation,session.evidence()+"Devices listed (cap 32): "+devices.size()+"\n"+schema); }
     private boolean prepare(State operation,boolean scan) {
         if(!visible) return false;
         stop(Reason.USER_STOP); token=session.begin(operation,now()); schema="";
+        this.operation=operation;
         try {
             adapter=BluetoothDiagnostics.adapter(context);
             if(adapter==null) { fail(Reason.MISSING_HARDWARE,0,"Android Bluetooth adapter unavailable"); return false; }
@@ -152,7 +154,7 @@ final class BluetoothController {
                     @Override public void onScanResult(int callbackType,ScanResult result) {
                         handler.post(()->{ if(visible && session.accepts(revision)) try { add(result.getDevice(),result.getRssi(),false,true,result.getScanRecord()==null ? null : result.getScanRecord().getDeviceName()); notifyUi(); } catch(RuntimeException error) { fail(Reason.EXCEPTION,0,"BLE result unavailable"); } });
                     }
-                    @Override public void onScanFailed(int code) { handler.post(()->{ if(visible && session.accepts(revision)) fail(Reason.SCAN_ERROR,code,"BLE scan failed · status "+code); }); }
+                    @Override public void onScanFailed(int code) { handler.post(()->{ if(visible && session.accepts(revision)) fail(Reason.SCAN_ERROR,code,code==ScanCallback.SCAN_FAILED_INTERNAL_ERROR ? "Android BLE scan could not start · internal error (3). Capture Bluetooth-manager status in Diagnostics." : "BLE scan failed · status "+code); }); }
                 };
                 scanner.startScan(null,new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),scanCallback);
                 status="Scanning BLE · up to 12 seconds";

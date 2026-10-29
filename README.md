@@ -37,6 +37,10 @@ Since v1.0.11, the cockpit uses a navigation-first hierarchy and shared high-con
 
 The CPU/RAM sampler runs only while **Settings → Device → Device health** is visible and the activity is resumed. GPS subscriptions, clock ticks, map rendering, and radio subscriptions stop when a dialog covers the dashboard or another app takes over. Opening a diagnostic report performs a one-shot capture. Automatic update checks are limited to once per day while the cockpit is visible; they never download or install automatically. Panels provide **Back** for one level and **Close** to return directly to the cockpit.
 
+## Bluetooth diagnostics
+
+Bluetooth diagnostics can inspect factory Bluetooth classes and capture a filtered Android Bluetooth-manager summary through **Settings → Bluetooth → Diagnostics**. Ordinary capture may require privileged access; optional local ADB capture is an explicit read-only action using existing authorization. Reports retain separate last Classic/BLE scan results and exclude raw manager dumps and device identities. See [Bluetooth diagnostics](docs/bluetooth-diagnostics.md).
+
 ## Online maps
 
 GPS speed and heading work without online services. Map connections are **off by default**. The on-device Connect screen lists the providers and explains the location/search information involved before enabling requests.

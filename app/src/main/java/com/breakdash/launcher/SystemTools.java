@@ -24,6 +24,7 @@ final class SystemTools {
     static final String[] GOOGLE={"com.google.android.gsf","com.google.android.gms","com.android.vending"};
     private static final Set<String> ALLOWED=new HashSet<>(Arrays.asList(GOOGLE));
     private final Context context;
+    private final Object adbKeyLock=new Object();
     private long previousTotal,previousIdle;
     SystemTools(Context context) { this.context=context.getApplicationContext(); }
     void resetMonitor() { previousTotal=0; previousIdle=0; }
@@ -36,11 +37,22 @@ final class SystemTools {
         return false;
     }
     private Dadb connect() throws Exception {
-        File directory=new File(context.getNoBackupFilesDir(),"adb");
-        if(!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create private ADB key directory");
-        File privateKey=new File(directory,"adbkey"),publicKey=new File(directory,"adbkey.pub");
-        if(!privateKey.isFile() || !publicKey.isFile()) AdbKeyPair.generate(privateKey,publicKey);
-        return Dadb.create("127.0.0.1",5555,AdbKeyPair.read(privateKey,publicKey),2000,20000);
+        return connect(20000);
+    }
+    private Dadb connect(int readTimeout) throws Exception {
+        AdbKeyPair keys;
+        synchronized(adbKeyLock) {
+            File directory=new File(context.getNoBackupFilesDir(),"adb");
+            if(!directory.isDirectory() && !directory.mkdirs()) throw new IOException("Cannot create private ADB key directory");
+            File privateKey=new File(directory,"adbkey"),publicKey=new File(directory,"adbkey.pub");
+            if(!privateKey.isFile() || !publicKey.isFile()) AdbKeyPair.generate(privateKey,publicKey);
+            keys=AdbKeyPair.read(privateKey,publicKey);
+        }
+        return Dadb.create("127.0.0.1",5555,keys,2000,readTimeout);
+    }
+    Dadb bluetoothDiagnosticConnection() throws Exception {
+        if(!portOpen()) throw new IOException("Local ADB unavailable");
+        return connect(6500);
     }
     synchronized String testAdb() throws Exception {
         try(Dadb adb=connect()) {

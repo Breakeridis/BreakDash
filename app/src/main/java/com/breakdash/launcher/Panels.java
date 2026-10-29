@@ -293,7 +293,7 @@ final class Panels implements AutoCloseable {
         monitor=ui.text("Sampling…",22,ui.text); panel.body.addView(monitor);
         explain(panel.body,"Live while this page is open"); visibilityChanged(resumed);
     }
-    private void adb() {
+    void adb() {
         Panel panel=new Panel("Local ADB",true,true);
         TextView state=ui.text("Not connected",20,ui.text); panel.body.addView(state);
         fullButton(panel.body,"Connect",()->{

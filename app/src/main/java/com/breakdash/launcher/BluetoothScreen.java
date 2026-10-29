@@ -25,6 +25,9 @@ final class BluetoothScreen {
     private BluetoothController.Device selected;
     private Tasks.Scope inspection;
     private String inspectionStatus="";
+    private Tasks.Scope managerJob;
+    private BluetoothManagerCapture managerCapture;
+    private String managerStatus="";
     BluetoothScreen(MainActivity main) {
         this.main=main; ui=main.ui;
         controller=new BluetoothController(main,this::render);
@@ -32,7 +35,7 @@ final class BluetoothScreen {
         LinearLayout rail=ui.row();
         String[] names={"Devices","Phone & Music","Diagnostics"};
         for(int i=0;i<names.length;i++) {
-            final int index=i; tabs[i]=ui.button(names[i],()->{ controller.stop(Reason.USER_STOP); tab=index; render(); });
+            final int index=i; tabs[i]=ui.button(names[i],()->{ controller.stop(Reason.USER_STOP); cancelDiagnostics(); tab=index; render(); });
             ui.weighted(rail,tabs[i],72);
         }
         panel.body.addView(rail); ui.gap(panel.body,10);
@@ -40,7 +43,7 @@ final class BluetoothScreen {
         ScrollView scroll=new ScrollView(main); page=ui.column(); scroll.addView(page); panel.body.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         panel.visibility=value->{
             controller.visible(value);
-            if(!value && inspection!=null) { inspection.close(); inspection=null; inspectionStatus="Inspection cancelled · tap to run again"; }
+            if(!value) cancelDiagnostics();
             if(value) render();
         };
         panel.dismissed=()->main.panels.bluetoothClosed(this);
@@ -111,20 +114,26 @@ final class BluetoothScreen {
         Button button=action(intent==null ? title+" · unavailable" : title,()->{ controller.stop(Reason.USER_STOP); main.launchPackage(name); }); button.setEnabled(intent!=null);
     }
     private void diagnostics() {
-        text("Run a BLE connection test for the KW906, then send feedback. Factory inspection reads package/interface definitions without calling unknown vendor controls.");
-        Button inspect=action(inspection==null ? "Inspect factory interfaces" : "Inspecting…",this::inspect); inspect.setEnabled(inspection==null);
+        text("After scanning, inspect factory Bluetooth classes and capture Android Bluetooth status, then send feedback. Internal scan error (3) means Android could not start the scan; no scanner connection was attempted.");
+        boolean busy=inspection!=null || managerJob!=null;
+        Button inspect=action(inspection==null ? "Inspect factory Bluetooth interfaces" : "Inspecting…",this::inspect); inspect.setEnabled(!busy);
         if(!inspectionStatus.isEmpty()) text(inspectionStatus);
+        Button capture=action("Capture Android Bluetooth status",()->captureManager(false)); capture.setEnabled(!busy);
+        text("Ordinary capture may be denied by Android. Optional local ADB capture uses one read-only status command and requires TCP debugging plus Android authorization. It does not enable debugging or change Bluetooth settings.");
+        Button adb=action("Capture status through local ADB",()->captureManager(true)); adb.setEnabled(!busy);
+        action("Local ADB setup / authorization",()->main.panels.adb());
+        if(!managerStatus.isEmpty()) text(managerStatus);
+        Button cancel=action("Cancel diagnostic task",()->{ cancelDiagnostics(); render(); }); cancel.setEnabled(busy);
         action("Refresh snapshot",this::render);
         action("Send feedback",()->{ controller.stop(Reason.USER_STOP); main.panels.report(); });
         action("Clear Bluetooth diagnostic history",()->{
             controller.stop(Reason.USER_STOP);
-            if(inspection!=null) { inspection.close(); inspection=null; }
-            BluetoothDiagnostics.clear(main); inspectionStatus=""; render();
+            cancelDiagnostics(); BluetoothDiagnostics.clear(main); inspectionStatus=""; managerStatus=""; render();
         });
         TextView report=ui.text(BluetoothDiagnostics.collect(main),14,ui.muted); report.setTextIsSelectable(true); page.addView(report);
     }
     private void inspect() {
-        if(inspection!=null || !panel.top()) return;
+        if(inspection!=null || managerJob!=null || !panel.top()) return;
         controller.stop(Reason.USER_STOP); inspectionStatus="Inspecting read-only factory metadata…"; inspection=main.tasks.scope();
         inspection.run(()->BluetoothFactoryInspector.inspect(main.getApplicationContext()),result->{
             if(inspection!=null) { inspection.close(); inspection=null; }
@@ -132,6 +141,25 @@ final class BluetoothScreen {
             BluetoothDiagnostics.factory(main,result); inspectionStatus="Inspection saved for feedback"; render();
         },error->{ if(inspection!=null) { inspection.close(); inspection=null; } inspectionStatus="Inspection unavailable on this firmware"; render(); });
         render();
+    }
+    private void captureManager(boolean useAdb) {
+        if(inspection!=null || managerJob!=null || !panel.top()) return;
+        controller.stop(Reason.USER_STOP);
+        BluetoothManagerCapture request=new BluetoothManagerCapture(); managerCapture=request; managerJob=main.tasks.scope();
+        managerStatus=useAdb ? "Reading through local ADB · allow Android authorization if requested" : "Reading Android Bluetooth status…";
+        managerJob.run(()->request.read(main.system,useAdb),result->{
+            if(managerJob!=null) { managerJob.close(); managerJob=null; } managerCapture=null;
+            if(!panel.top()) return;
+            BluetoothDiagnostics.manager(main,result);
+            managerStatus=result.contains("capture denied") ? "Capture denied by Android · try optional local ADB access" : result.contains("capture unavailable") ? "Capture unavailable · see saved status below" : "Bluetooth-manager summary saved for feedback";
+            render();
+        },error->{ request.close(); if(managerJob!=null) { managerJob.close(); managerJob=null; } managerCapture=null; managerStatus="Capture cancelled or unavailable"; render(); });
+        render();
+    }
+    private void cancelDiagnostics() {
+        if(inspection!=null) { inspection.close(); inspection=null; inspectionStatus="Inspection cancelled · tap to run again"; }
+        if(managerCapture!=null) { managerCapture.close(); managerCapture=null; }
+        if(managerJob!=null) { managerJob.close(); managerJob=null; managerStatus="Status capture cancelled · tap to run again"; }
     }
     private void settings(String action) {
         controller.stop(Reason.USER_STOP);
