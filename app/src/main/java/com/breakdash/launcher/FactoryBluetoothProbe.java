@@ -47,9 +47,13 @@ final class FactoryBluetoothProbe {
         worker=new HandlerThread("BreakDash-Factory-BT") {
             @Override protected void onLooperPrepared() {
                 work=new Handler(getLooper());
-                if(state.closed()) quitSafely(); else work.post(FactoryBluetoothProbe.this::prepare);
+                if(state.closed()) quit(); else work.post(FactoryBluetoothProbe.this::prepare);
             }
-            @Override public void run() { try { super.run(); } finally { IN_FLIGHT.set(false); } }
+            @Override public void run() {
+                try { super.run(); }
+                catch(RuntimeException | LinkageError | AssertionError error) { failed(error,Outcome.INIT_FAILED); }
+                finally { IN_FLIGHT.set(false); }
+            }
         };
         main.postDelayed(()->finish(Outcome.TIMEOUT,""),FactoryBluetoothProbeState.DEADLINE_MS);
         try { worker.start(); }
@@ -107,7 +111,7 @@ final class FactoryBluetoothProbe {
             try { context.unbindService(connection); } catch(RuntimeException error) { failure=error; }
         }
         Handler handler=work; if(handler!=null) handler.removeCallbacksAndMessages(null);
-        if(worker!=null) { worker.quitSafely(); worker.interrupt(); }
+        if(worker!=null) { worker.quit(); worker.interrupt(); }
         if(failure!=null) throw failure;
     }
 }
