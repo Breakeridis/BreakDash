@@ -39,11 +39,21 @@ public class BluetoothInspectionPlanTest {
         for(int i=0;i<100;i++) { plan.offer("com.bt.BTConstant$Feature"+i); plan.offer("com.bt.bc03.Manager"+i); }
         plan.offer("com.bt.hd.link.BluetoothAPI"); plan.offer("com.bt.hd.link.AbsServiceControllerHelper");
         plan.offer("com.bt.BTFeature"); plan.offer("com.bt.BTSourceFeature"); plan.offer("com.bt.vendor.BleManager");
-        assertEquals("com.bt.hd.link.BluetoothAPI",plan.names().get(0));
+        plan.offer("com.bt.BTController"); plan.offer("com.android.utils.utils.AbsServiceControllerHelper");
+        assertEquals("com.bt.BTController",plan.names().get(0));
+        assertEquals("com.android.utils.utils.AbsServiceControllerHelper",plan.names().get(1));
         assertTrue(plan.names().contains("com.bt.BTSourceFeature"));
         assertTrue(plan.names().contains("com.bt.vendor.BleManager"));
         assertFalse(BluetoothInspectionPlan.hasBleMarker("enableBluetooth"));
         assertTrue(BluetoothInspectionPlan.methodPriority("getInstance")<BluetoothInspectionPlan.methodPriority("startBleScan"));
         assertTrue(BluetoothInspectionPlan.methodPriority("startBleScan")<BluetoothInspectionPlan.methodPriority("btReset"));
+    }
+    @Test public void controllerHelperExceptionDoesNotOpenUnrelatedAndroidUtilities() {
+        assertNotNull(BluetoothInspectionPlan.contract("com.android.utils.utils.AbsServiceControllerHelper"));
+        assertNotNull(BluetoothInspectionPlan.contract("com.android.utils.utils.AbsServiceControllerHelper$OnServiceConnectSuccessListener"));
+        assertNull(BluetoothInspectionPlan.contract("com.android.utils.utils.OtherServiceHelper"));
+        assertNull(BluetoothInspectionPlan.contract("com.android.utils.utils.AbsServiceControllerHelperUnrelated"));
+        assertEquals(0,BluetoothInspectionPlan.methodPriority("getServiceIntent"));
+        assertTrue(BluetoothInspectionPlan.schemaLimit("com.bt.BTController")>BluetoothInspectionPlan.schemaLimit("com.visualframe.btphone.LetterManager"));
     }
 }

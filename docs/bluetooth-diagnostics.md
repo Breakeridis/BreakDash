@@ -62,8 +62,10 @@ Classic/BLE scan summaries, the latest operation stages/timings/numeric statuses
 and explicitly collected factory data. Android 12+ scan/connect permissions are
 labeled not applicable on Android 10/11. Internal scan error 3 is explained as a
 scan-start failure, not an OBD connection error.
-The total Bluetooth section is capped at 24 KB. Results are saved in app-private
+The total Bluetooth section is capped at 40 KB. Results are saved in app-private
 preferences until replaced or cleared; no device identity is persisted there.
+New captures include the producing app version as well as their timestamp.
+Unversioned results are older captures; updating does not silently rerun scans.
 
 Names and addresses appear only in the local device UI. Reports omit device names,
 addresses, raw advertisements, contacts, phone numbers and characteristic values.
@@ -113,6 +115,26 @@ and status-read failures are distinguished without retaining exception messages.
 The old single capture is shown as legacy evidence with an unknown method until
 a new capture is saved. Clearing history removes both new captures and the old one.
 
+### Concrete controller inspection
+
+v1.0.16 prioritizes `com.bt.BTController` and its observed direct parent,
+`com.android.utils.utils.AbsServiceControllerHelper`. The helper and its nested
+contracts are a narrow exception to the Bluetooth namespace filter; unrelated
+Android utilities remain excluded. Inherited public methods on this helper are
+included. Newly referenced parent/callback types are ranked into the remaining
+queue instead of waiting behind unrelated managers. This is metadata inspection,
+not an SDK connection or a guessed callback implementation.
+
+The controller, its parent and main feature interfaces have larger individual
+allocations, within a 28 KB factory section and the same five-second overall
+cooperative limit. Up to 96 relevant method definitions are captured per class.
+Service-intent and initialization methods, and static methods returning the
+controller type, rank first. Definitions include explicit constructor/method/field
+omission markers. Identical complete captured schemas are referenced across
+packages; truncated, cancelled, failed or differing schemas never deduplicate.
+This leaves later packages room for their distinct SDK implementations without
+assuming that a shared class name means identical code or an active backend.
+
 ## Verification
 
 All executable verification runs on GitHub Actions: JVM state-machine/privacy
@@ -128,6 +150,10 @@ Synthetic SDK fixtures also verify that constructor/static-factory/inherited and
 callback definitions are captured without class initialization or invocation;
 small text budgets and cancellation remain bounded. Capture regressions verify
 method/stage attribution, listener/authorization/read failures and privacy.
+Controller-parent regressions cover the narrow utility-helper exception,
+inherited lifecycle/callback definitions, static factories with other names,
+and refusing to deduplicate incomplete or differing schemas. Fixtures contain
+synthetic definitions only; factory APKs and real feedback never enter CI.
 
 Device acceptance:
 
@@ -162,6 +188,11 @@ Device acceptance:
    app status followed by optional ADB status and confirm both remain in feedback.
    A stopped ADB daemon should report the listener stage; failed authorization
    should report the connection stage. Neither result proves BLE incapability.
+10. Check the concrete controller and actual helper appear before general SDK
+    classes, with inherited connection/cleanup signatures. Later packages should
+    reference only identical complete captured schemas and retain differences.
+    New scan, manager and inspection captures should show the producing version;
+    saved older scan timestamps must not imply a fresh post-update attempt.
 
 The next implementation follows the reported interfaces and transport. Do not
 guess vendor callback layouts, characteristic UUIDs, pairing PINs or OBD frames.
