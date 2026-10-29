@@ -38,7 +38,8 @@ final class BluetoothFactoryInspector {
                 out.append("Signatures from read-only factory APK: ").append(name).append('\n');
                 for(String path:verified) {
                     if(expired(deadline) || candidates>=64) break;
-                    try(DexFile dex=new DexFile(path)) {
+                    DexFile dex=new DexFile(path);
+                    try {
                         Enumeration<String> entries=dex.entries();
                         while(entries.hasMoreElements() && candidates<64 && !expired(deadline) && out.length()<7000) {
                             String typeName=entries.nextElement();
@@ -60,7 +61,7 @@ final class BluetoothFactoryInspector {
                                 }
                             } catch(ClassNotFoundException | LinkageError | RuntimeException error) { out.append("  Signature unavailable: ").append(error.getClass().getSimpleName()).append('\n'); }
                         }
-                    }
+                    } finally { dex.close(); }
                 }
             } catch(Exception | LinkageError error) { out.append("Inspection unavailable for ").append(name).append(": ").append(error.getClass().getSimpleName()).append('\n'); }
         }
